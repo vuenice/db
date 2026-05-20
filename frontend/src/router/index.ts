@@ -1,28 +1,33 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { routes as autoRoutes } from 'vue-router/auto-routes'
 import { useAuthStore } from '../stores/auth'
 
-// unplugin-vue-router derives route names/paths from filenames, which gives
-// us things like `/LoginView` and `/workbench/`. The rest of the app (and the
-// auth guard below) refers to `login`, `register`, `workbench`, so remap the
-// generated routes to those names and clean paths.
-const aliasByGeneratedName: Record<
-  string,
-  { name: string; path: string; meta?: Record<string, unknown> }
-> = {
-  '/LoginView': { name: 'login', path: '/login' },
-  '/RegisterView': { name: 'register', path: '/register' },
-  '/workbench/': { name: 'workbench', path: '/workbench', meta: { requiresAuth: true } },
-}
-
-const routes: RouteRecordRaw[] = (autoRoutes as RouteRecordRaw[]).map((r) => {
-  const a = aliasByGeneratedName[String(r.name)]
-  if (!a) return r
-  return { ...r, ...a, meta: { ...(r.meta ?? {}), ...(a.meta ?? {}) } }
-})
-
-routes.push({ path: '/', redirect: '/workbench' })
-routes.push({ path: '/:pathMatch(.*)*', redirect: '/workbench' })
+const routes: RouteRecordRaw[] = [
+  { name: 'login', path: '/login', component: () => import('../views/LoginView.vue') },
+  { name: 'register', path: '/register', component: () => import('../views/RegisterView.vue') },
+  {
+    name: 'workbench',
+    path: '/workbench',
+    component: () => import('../views/workbench/index.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/workbench/export',
+    component: () => import('../views/workbench/export/index.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/workbench/import',
+    component: () => import('../views/workbench/import/index.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/workbench/query',
+    component: () => import('../views/workbench/query/index.vue'),
+    meta: { requiresAuth: true },
+  },
+  { path: '/', redirect: '/workbench' },
+  { path: '/:pathMatch(.*)*', redirect: '/workbench' },
+]
 
 const router = createRouter({
   history: createWebHistory(),
