@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Remove-Item \"c:\\\\laragon\\\\www\\\\vnt\\\\db\\\\frontend\\\\typed-router.d.ts\")"
+    ]
+  }
+}
