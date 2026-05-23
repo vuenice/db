@@ -3,6 +3,8 @@ import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { http } from '../api/http'
 import { useAuthStore } from '../stores/auth'
+import VueNiceTable from '@/shared/common/CommonTable.vue'
+import VueNiceModal from '@/shared/common/CommonModal.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -123,6 +125,45 @@ const displayExecRows = computed(() => {
   if (!q) return r.rows
   return r.rows.filter((row) => row.some((cell) => String(cell ?? '').toLowerCase().includes(q)))
 })
+
+const structureFields = [
+  { key: 'column', label: 'Column' },
+  { key: 'data_type', label: 'Type' },
+  { key: 'is_nullable', label: 'Nullable' },
+]
+const structureItems = computed(() => ({ data: columns.value }))
+
+const dataPreviewFields = computed(() =>
+  (dataPreview.value?.columns ?? []).map((col) => ({ key: col, label: col })),
+)
+const dataPreviewItems = computed(() => ({
+  data: (dataPreview.value?.rows ?? []).map((row, _rowIndex) => {
+    const obj: Record<string, unknown> = { _rowIndex }
+    ;(dataPreview.value?.columns ?? []).forEach((col, j) => {
+      obj[col] = row[j]
+    })
+    return obj
+  }),
+}))
+
+const indexesFields = [
+  { key: 'name', label: 'Index' },
+  { key: 'definition', label: 'Definition' },
+]
+const indexesItems = computed(() => ({ data: indexes.value }))
+
+const execResultFields = computed(() =>
+  (execResult.value?.columns ?? []).map((col) => ({ key: col, label: col })),
+)
+const execResultItems = computed(() => ({
+  data: displayExecRows.value.map((row) => {
+    const obj: Record<string, unknown> = {}
+    ;(execResult.value?.columns ?? []).forEach((col, j) => {
+      obj[col] = row[j]
+    })
+    return obj
+  }),
+}))
 
 function onSqlEditorScroll() {
   if (sqlGutter.value && sqlTextarea.value) {
@@ -805,6 +846,10 @@ watch(
   },
 )
 
+function duplicateTab() {
+  window.open(window.location.href, '_blank')
+}
+
 function logout() {
   accountMenuOpen.value = false
   auth.logout()
@@ -1134,7 +1179,19 @@ async function submitRowUpdate() {
 <template>
   <div class="app-shell">
     <header class="top-header">
-      <div class="logo">ChatDB</div>
+      <div class="logo">VueNiceDB</div>
+      <button
+        type="button"
+        class="ghost icon-only dup-tab-btn"
+        title="Duplicate tab"
+        aria-label="Duplicate tab"
+        @click="duplicateTab"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      </button>
       <div class="header-right">
         <div v-if="selectedConnId" class="header-tools">
           <label>
@@ -1220,15 +1277,14 @@ async function submitRowUpdate() {
       </div>
     </header>
 
-    <div v-if="rowEditOpen" class="modal-backdrop" @click.self="closeRowEditor">
-      <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="row-edit-title" @click.stop>
-        <div class="modal-header">
-          <h2 id="row-edit-title" class="modal-title">Update row</h2>
-          <button type="button" class="modal-close" aria-label="Close" @click="closeRowEditor">×</button>
-        </div>
+    <VueNiceModal v-model="rowEditOpen" size="2xl" @close="closeRowEditor">
+      <template #header>
+        <h2 class="modal-title">Update row</h2>
         <p v-if="selectedTable" class="muted small modal-sub">
           {{ selectedTable.schema }}.{{ selectedTable.name }}
         </p>
+      </template>
+      <template #content>
         <div class="modal-fields scroll">
           <label v-for="col in (dataPreview?.columns ?? []).filter((c) => c !== 'id')" :key="col" class="modal-field">
             {{ col }}
@@ -1245,48 +1301,55 @@ async function submitRowUpdate() {
           <pre class="mono preview-sql">{{ rowEditPreviewSql }}</pre>
         </div>
         <p v-if="rowEditError" class="error">{{ rowEditError }}</p>
+      </template>
+      <template #footer>
         <div class="modal-actions">
           <button type="button" class="ghost" :disabled="rowEditBusy" @click="closeRowEditor">Cancel</button>
           <button type="button" class="primary" :disabled="rowEditBusy" @click="submitRowUpdate">
             {{ rowEditBusy ? 'Updating…' : 'Update' }}
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </VueNiceModal>
 
-    <div v-if="explainOpen" class="modal-backdrop" @click.self="closeExplainModal">
-      <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="explain-title" @click.stop>
-        <div class="modal-header">
-          <h2 id="explain-title" class="modal-title">Explain plan</h2>
-          <button type="button" class="modal-close" aria-label="Close" @click="closeExplainModal">×</button>
-        </div>
+    <VueNiceModal v-model="explainOpen" size="2xl" @close="closeExplainModal">
+      <template #header>
+        <h2 class="modal-title">Explain plan</h2>
+      </template>
+      <template #content>
         <p v-if="explainLoading" class="muted small">Loading…</p>
         <p v-else-if="explainError" class="error">{{ explainError }}</p>
         <pre v-else-if="explainText" class="mono preview-sql explain-body">{{ explainText }}</pre>
         <p v-else class="muted small">No plan returned.</p>
+      </template>
+      <template #footer>
         <div class="modal-actions">
           <button type="button" class="ghost" @click="closeExplainModal">Close</button>
         </div>
-      </div>
-    </div>
+      </template>
+    </VueNiceModal>
 
-    <div v-if="createDbModalOpen" class="modal-backdrop" @click.self="closeCreateDbModal">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-db-title" @click.stop>
-        <h2 id="create-db-title" class="modal-title">Create new database</h2>
+    <VueNiceModal v-model="createDbModalOpen" size="md" @close="closeCreateDbModal">
+      <template #header>
+        <h2 class="modal-title">Create new database</h2>
+      </template>
+      <template #content>
         <p class="muted small">Runs on the server with write access. Name: letters, digits, underscores only.</p>
         <label class="modal-field">
           Database name
           <input v-model="newPhysicalDbName" type="text" autocomplete="off" pattern="[A-Za-z0-9_]+" />
         </label>
         <p v-if="createDbError" class="error">{{ createDbError }}</p>
+      </template>
+      <template #footer>
         <div class="modal-actions">
           <button type="button" class="ghost" :disabled="createDbBusy" @click="closeCreateDbModal">Cancel</button>
           <button type="button" class="primary" :disabled="createDbBusy || !newPhysicalDbName.trim()" @click="submitCreateDatabase">
             {{ createDbBusy ? 'Creating…' : 'Create' }}
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </VueNiceModal>
 
     <div class="layout">
     <aside class="left-rail" aria-label="Main navigation">
@@ -1363,57 +1426,20 @@ async function submitRowUpdate() {
               </button>
             </div>
             <div v-if="tableTab === 'structure'" class="scroll">
-              <table class="grid">
-                <thead>
-                  <tr>
-                    <th>Column</th>
-                    <th>Type</th>
-                    <th>Nullable</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="c in columns" :key="c.column">
-                    <td>{{ c.column }}</td>
-                    <td>{{ c.data_type }}</td>
-                    <td>{{ c.is_nullable }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <VueNiceTable :fields="structureFields" :items="(structureItems as any)" row-bordered />
             </div>
             <div v-else-if="tableTab === 'data'" class="scroll">
-              <table v-if="dataPreview" class="grid">
-                <thead>
-                  <tr>
-                    <th v-for="col in dataPreview.columns" :key="col">{{ col }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(row, i) in dataPreview.rows"
-                    :key="i"
-                    class="data-row"
-                    @click="openRowEditor(i)"
-                  >
-                    <td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <VueNiceTable
+                v-if="dataPreview"
+                :fields="dataPreviewFields"
+                :items="(dataPreviewItems as any)"
+                hover
+                row-bordered
+                @rowClicked="(item: any) => openRowEditor(item._rowIndex as number)"
+              />
             </div>
             <div v-else class="scroll">
-              <table class="grid">
-                <thead>
-                  <tr>
-                    <th>Index</th>
-                    <th>Definition</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="ix in indexes" :key="ix.name">
-                    <td>{{ ix.name }}</td>
-                    <td class="mono def">{{ ix.definition || '—' }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <VueNiceTable :fields="indexesFields" :items="(indexesItems as any)" row-bordered />
             </div>
           </template>
         </div>
@@ -1631,18 +1657,13 @@ async function submitRowUpdate() {
                     <p v-if="execError" class="error sql-results-error">{{ execError }}</p>
                     <div v-else-if="execResult" class="sql-results-body scroll">
                       <p v-if="execResult.message" class="muted">{{ execResult.message }}</p>
-                      <table v-else class="grid grid-striped">
-                        <thead>
-                          <tr>
-                            <th v-for="c in execResult.columns" :key="c">{{ c }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="(row, i) in displayExecRows" :key="i">
-                            <td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <VueNiceTable
+                        v-else
+                        :fields="execResultFields"
+                        :items="(execResultItems as any)"
+                        striped
+                        row-bordered
+                      />
                     </div>
                     <div v-else class="sql-results-placeholder muted small">Run a query to see results here.</div>
                   </div>

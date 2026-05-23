@@ -7,3 +7,5 @@ frontend/dist/
 tests/node_modules/
 
 test-results/
+
+chatdb.exe
