@@ -59,109 +59,31 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <p v-if="pageLoading" class="muted">Loading…</p>
-    <form v-else class="card" @submit.prevent="submit">
-      <h1>ChatDB</h1>
-      <p class="muted">PostgreSQL &amp; MySQL viewer</p>
-      <label>
+  <div class="min-h-screen flex items-center justify-center bg-[#0f1419] text-[#e6edf3] p-4">
+    <p v-if="pageLoading" class="m-0 text-[#8b949e] text-[0.9rem]">Loading…</p>
+    <form v-else class="w-full max-w-[400px] p-8 rounded-xl bg-[#161b22] border border-[#30363d] flex flex-col gap-3" @submit.prevent="submit">
+      <h1 class="m-0 text-2xl">ChatDB</h1>
+      <p class="m-0 text-[#8b949e] text-[0.9rem]">PostgreSQL &amp; MySQL viewer</p>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
         Connection label
-        <select v-model="connectionName" required>
+        <select v-model="connectionName" required class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]">
           <option v-for="l in labels" :key="l" :value="l">{{ l }}</option>
         </select>
       </label>
-      <label>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
         Username
-        <input v-model="username" type="text" required autocomplete="username" />
+        <input v-model="username" type="text" required autocomplete="username" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
       </label>
-      <label>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
         Password
-        <input v-model="password" type="password" autocomplete="current-password" />
+        <input v-model="password" type="password" autocomplete="current-password" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
       </label>
 
-      <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" class="primary" :disabled="loading || pageLoading">{{ loading ? '…' : 'Login' }}</button>
-      <p v-if="auth.hasUsers !== false" class="footer">
-        <RouterLink to="/register">Register new connection</RouterLink>
+      <p v-if="error" class="text-[#f85149] m-0 text-[0.85rem]">{{ error }}</p>
+      <button type="submit" class="mt-2 p-[0.6rem] border-none rounded-md bg-[#238636] text-white font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default" :disabled="loading || pageLoading">{{ loading ? '…' : 'Login' }}</button>
+      <p v-if="auth.hasUsers !== false" class="m-0 text-[0.85rem] text-center">
+        <RouterLink to="/register" class="text-[#58a6ff] no-underline hover:underline">Register new connection</RouterLink>
       </p>
     </form>
   </div>
 </template>
-
-<style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0f1419;
-  color: #e6edf3;
-  padding: 1rem;
-}
-.card {
-  width: 100%;
-  max-width: 400px;
-  padding: 2rem;
-  border-radius: 12px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-.muted {
-  margin: 0;
-  color: #8b949e;
-  font-size: 0.9rem;
-}
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: #8b949e;
-}
-input,
-select {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
-}
-.primary {
-  margin-top: 0.5rem;
-  padding: 0.6rem;
-  border: none;
-  border-radius: 6px;
-  background: #238636;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-.primary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-.error {
-  color: #f85149;
-  margin: 0;
-  font-size: 0.85rem;
-}
-.footer {
-  margin: 0;
-  font-size: 0.85rem;
-  text-align: center;
-}
-.footer a {
-  color: #58a6ff;
-  text-decoration: none;
-}
-.footer a:hover {
-  text-decoration: underline;
-}
-</style>

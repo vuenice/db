@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite'
 import Vue from '@vitejs/plugin-vue'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [Vue()],
   resolve: {
     alias: {
-      '@': 'C:/laragon/www/dail-it',
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {

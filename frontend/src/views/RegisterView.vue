@@ -72,156 +72,55 @@ async function submit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <form class="card wide" @submit.prevent="submit">
-      <h1>ChatDB</h1>
-      <p class="muted">Register new connection</p>
-      <p class="note">
+  <div class="min-h-screen flex items-center justify-center bg-[#0f1419] text-[#e6edf3] p-4">
+    <form class="w-full max-w-[480px] p-8 rounded-xl bg-[#161b22] border border-[#30363d] flex flex-col gap-3" @submit.prevent="submit">
+      <h1 class="m-0 text-2xl">ChatDB</h1>
+      <p class="m-0 text-[#8b949e] text-[0.9rem]">Register new connection</p>
+      <p class="m-0 px-[0.85rem] py-[0.75rem] rounded-lg border border-[#30363d] bg-[#0d1117] text-[#8b949e] text-[0.8rem] leading-[1.45]">
         For the admin, login username and password are the same as the database username and password.
         Other users are created by the admin and cannot register here.
       </p>
-      <label
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
         >Connection label
-        <input v-model="conn.connection_name" type="text" required placeholder="e.g. production" />
+        <input v-model="conn.connection_name" type="text" required placeholder="e.g. production" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
       </label>
-      <label
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
         >Driver
-        <select v-model="conn.driver">
+        <select v-model="conn.driver" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]">
           <option value="postgres">PostgreSQL</option>
           <option value="mysql">MySQL / MariaDB</option>
         </select>
       </label>
-      <label>Host <input v-model="conn.host" required /></label>
-      <label>Port <input v-model.number="conn.port" type="number" /></label>
-      <label
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">Host <input v-model="conn.host" required class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" /></label>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">Port <input v-model.number="conn.port" type="number" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" /></label>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
         >Database Name
-        <input v-model="conn.database" required placeholder="Default database" />
+        <input v-model="conn.database" required placeholder="Default database" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
       </label>
-      <label v-if="conn.driver === 'postgres'"
-        >SSL mode <input v-model="conn.ssl_mode" placeholder="disable"
+      <label v-if="conn.driver === 'postgres'" class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
+        >SSL mode <input v-model="conn.ssl_mode" placeholder="disable" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]"
       /></label>
-      <label
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
         >Database username
-        <input v-model="conn.db_username" required autocomplete="off" placeholder="e.g. root" />
+        <input v-model="conn.db_username" required autocomplete="off" placeholder="e.g. root" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
       </label>
-      <label
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]"
         >Database password
         <input
           v-model="conn.db_password"
           type="password"
           autocomplete="new-password"
           placeholder="leave empty for no password"
+          class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]"
         />
       </label>
 
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="errorHint" class="error-hint">{{ errorHint }}</p>
-      <button type="submit" class="primary" :disabled="loading">{{ loading ? '…' : 'Continue' }}</button>
-      <p v-if="auth.hasUsers !== false" class="footer">
-        <RouterLink to="/login">Already have an account? Sign in</RouterLink>
+      <p v-if="error" class="text-[#f85149] m-0 text-[0.85rem]">{{ error }}</p>
+      <p v-if="errorHint" class="text-[#d29922] -mt-1 mb-0 text-[0.85rem]">{{ errorHint }}</p>
+      <button type="submit" class="mt-2 p-[0.6rem] border-none rounded-md bg-[#238636] text-white font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default" :disabled="loading">{{ loading ? '…' : 'Continue' }}</button>
+      <p v-if="auth.hasUsers !== false" class="m-0 text-[0.85rem] text-center">
+        <RouterLink to="/login" class="text-[#58a6ff] no-underline hover:underline">Already have an account? Sign in</RouterLink>
       </p>
     </form>
   </div>
 </template>
-
-<style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0f1419;
-  color: #e6edf3;
-  padding: 1rem;
-}
-.card {
-  width: 100%;
-  max-width: 400px;
-  padding: 2rem;
-  border-radius: 12px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.card.wide {
-  max-width: 480px;
-}
-h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-.muted {
-  margin: 0;
-  color: #8b949e;
-  font-size: 0.9rem;
-}
-.note {
-  margin: 0;
-  padding: 0.75rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #8b949e;
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
-.section-title {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #e6edf3;
-}
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: #8b949e;
-}
-input,
-select {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
-}
-.primary {
-  margin-top: 0.5rem;
-  padding: 0.6rem;
-  border: none;
-  border-radius: 6px;
-  background: #238636;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-.primary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-.error {
-  color: #f85149;
-  margin: 0;
-  font-size: 0.85rem;
-}
-.error-hint {
-  color: #d29922;
-  margin: -0.25rem 0 0;
-  font-size: 0.85rem;
-}
-.footer {
-  margin: 0;
-  font-size: 0.85rem;
-  text-align: center;
-}
-.footer a {
-  color: #58a6ff;
-  text-decoration: none;
-}
-.footer a:hover {
-  text-decoration: underline;
-}
-</style>

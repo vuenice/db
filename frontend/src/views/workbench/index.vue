@@ -1,8 +1,22 @@
 <script setup lang="ts">
+// @ts-nocheck
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { http } from '../../api/http'
 import { useAuthStore } from '../../stores/auth'
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
+import CommonTable from '@/shared/common/CommonTable.vue'
+// @ts-ignore
+import {
+  DatabaseIcon,
+  TableIcon,
+  ClockIcon,
+  CodeIcon,
+  UsersIcon,
+  CogIcon,
+  ChevronDownIcon,
+  ChatAlt2Icon
+} from '@heroicons/vue/outline'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -136,6 +150,34 @@ const displayExecRows = computed(() => {
   const q = resultsFilter.value.trim().toLowerCase()
   if (!q) return r.rows
   return r.rows.filter((row) => row.some((cell) => String(cell ?? '').toLowerCase().includes(q)))
+})
+
+const execResultFields = computed(() => {
+  if (!execResult.value) return []
+  return execResult.value.columns.map((c, i) => ({ key: String(i), label: c }))
+})
+
+const execResultItems = computed(() => {
+  if (!execResult.value) return []
+  return displayExecRows.value.map(row => {
+    const obj: any = {}
+    ;(row as unknown[]).forEach((cell, i) => { obj[i] = cell })
+    return obj
+  })
+})
+
+const dataPreviewFields = computed(() => {
+  if (!dataPreview.value) return []
+  return dataPreview.value.columns.map((c, i) => ({ key: String(i), label: c }))
+})
+
+const dataPreviewItems = computed(() => {
+  if (!dataPreview.value) return []
+  return dataPreview.value.rows.map((row, index) => {
+    const obj: any = { _originalIndex: index }
+    ;(row as unknown[]).forEach((cell, i) => { obj[i] = cell })
+    return obj
+  })
 })
 
 function onSqlEditorScroll() {
@@ -1208,89 +1250,118 @@ async function submitRowUpdate() {
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="top-header">
-      <div class="logo">ChatDB</div>
-      <div class="header-right">
-        <div v-if="selectedConnId" class="header-tools">
-          <label>
-            Database
-            <select v-model="selectedPhysicalDatabase">
-              <option v-for="d in databases" :key="d" :value="d">{{ d }}</option>
-            </select>
-          </label>
-          <label>
-            DB roles
-            <select v-model="selectedRole">
-              <option value="">(session default)</option>
-              <option v-for="r in catalogRoles" :key="r" :value="r">{{ r }}</option>
-            </select>
-          </label>
-          <label v-if="auth.isEngineer" class="pool">
-            DB pool
-            <select v-model="poolMode">
-              <option value="read">Read</option>
-              <option value="write">Write</option>
-            </select>
-          </label>
+  <div class="relative h-screen flex flex-col overflow-hidden text-[#e6edf3] bg-[#0d1117]">
+    <header class="flex justify-between items-center w-full bg-[#0b0e14] py-2 px-4 h-[50px] border-b border-[#30363d] shrink-0 z-10">
+      <div class="h-[24px] flex items-center">
+        <div class="text-white font-bold text-xl tracking-wider flex items-center gap-2">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ChatDB
         </div>
-        <div ref="accountWrap" class="account-slot">
+      </div>
+      <div class="flex items-center gap-4">
+        <div v-if="selectedConnId" class="flex items-center gap-3">
+          <!-- Database -->
+          <Popover class="relative">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+              <div class="flex items-center gap-2">
+                <DatabaseIcon class="w-4 h-4 text-emerald-400" />
+                <span class="block truncate text-sm font-medium w-max max-w-[150px]">{{ selectedPhysicalDatabase || 'Database' }}</span>
+                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+              </div>
+            </PopoverButton>
+            <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+                <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
+                  <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Database</div>
+                  <button v-for="d in databases" :key="d" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedPhysicalDatabase = d">
+                    <DatabaseIcon class="w-4 h-4 text-gray-400" />
+                    <span class="block truncate">{{ d }}</span>
+                  </button>
+                </div>
+              </PopoverPanel>
+            </transition>
+          </Popover>
+
+          <!-- DB roles -->
+          <Popover class="relative">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+              <div class="flex items-center gap-2">
+                <UsersIcon class="w-4 h-4 text-emerald-400" />
+                <span class="block truncate text-sm font-medium max-w-[120px]">{{ selectedRole || '(session default)' }}</span>
+                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+              </div>
+            </PopoverButton>
+            <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+                <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
+                  <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Role</div>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = ''">
+                    <UsersIcon class="w-4 h-4 text-gray-400" />
+                    <span class="block truncate">(session default)</span>
+                  </button>
+                  <button v-for="r in catalogRoles" :key="r" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = r">
+                    <UsersIcon class="w-4 h-4 text-gray-400" />
+                    <span class="block truncate">{{ r }}</span>
+                  </button>
+                </div>
+              </PopoverPanel>
+            </transition>
+          </Popover>
+
+          <!-- DB pool -->
+          <Popover v-if="auth.isEngineer" class="relative">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+              <div class="flex items-center gap-2">
+                <CogIcon class="w-4 h-4 text-emerald-400" />
+                <span class="block truncate text-sm font-medium capitalize">{{ poolMode }}</span>
+                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+              </div>
+            </PopoverButton>
+            <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-32 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+                <div class="py-1">
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm text-gray-200" @click="poolMode = 'read'">Read</button>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm text-gray-200" @click="poolMode = 'write'">Write</button>
+                </div>
+              </PopoverPanel>
+            </transition>
+          </Popover>
+        </div>
+
+        <div class="h-[24px] w-[1px] bg-white/20 hidden lg:block"></div>
+
+        <div ref="accountWrap" class="relative">
           <button
             type="button"
-            class="account-toggle"
-            :class="{ 'is-open': accountMenuOpen }"
+            class="account-toggle flex items-center justify-center w-8 h-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#e6edf3] hover:border-[#484f58] hover:text-white transition-colors"
+            :class="{ 'border-[#58a6ff] shadow-[0_0_0_1px_rgba(88,166,255,0.2)] text-white': accountMenuOpen }"
             :aria-expanded="accountMenuOpen"
-            :aria-label="
-              (accountMenuOpen ? 'Close account menu' : 'Open account menu') +
-              (auth.user?.username ? ` (${auth.user.username})` : '')
-            "
+            :aria-label="(accountMenuOpen ? 'Close account menu' : 'Open account menu') + (auth.user?.username ? ` (${auth.user.username})` : '')"
             aria-haspopup="menu"
             aria-controls="account-menu-dropdown"
             @click.stop="toggleAccountMenu"
           >
-            <svg
-              class="hamburger-icon"
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                class="hamburger-line hamburger-line-top"
-                d="M4 7h16"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-              <path
-                class="hamburger-line hamburger-line-mid"
-                d="M4 12h16"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-              <path
-                class="hamburger-line hamburger-line-bot"
-                d="M4 17h16"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
+            <svg class="hamburger-icon pointer-events-none" viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path class="hamburger-line hamburger-line-top transition-all duration-200 origin-center" :class="{'translate-y-[5px] rotate-45': accountMenuOpen}" d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path class="hamburger-line hamburger-line-mid transition-all duration-200 origin-center" :class="{'opacity-0 scale-x-0': accountMenuOpen}" d="M4 12h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path class="hamburger-line hamburger-line-bot transition-all duration-200 origin-center" :class="{'-translate-y-[5px] -rotate-45': accountMenuOpen}" d="M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
           <div
             id="account-menu-dropdown"
             v-show="accountMenuOpen"
-            class="account-dropdown"
+            class="absolute right-0 top-[calc(100%+6px)] min-w-[220px] p-2.5 rounded-md border border-[#30363d] bg-[#0b0e14] shadow-[0_8px_24px_rgba(0,0,0,0.45)] flex flex-col gap-1.5 z-30"
             role="menu"
             @click.stop
           >
-            <div class="account-username">{{ auth.user?.username }}</div>
-            <div v-if="auth.user?.role" class="account-role">{{ auth.user.role }}</div>
-            <button type="button" class="dropdown-item" role="menuitem" @click="openCreateDbModal">Create new database</button>
-            <button v-if="showLogout" type="button" class="dropdown-item linkish" role="menuitem" @click="logout">Log out</button>
+            <div class="text-[0.8rem] text-[#e6edf3] break-all">{{ auth.user?.username }}</div>
+            <div v-if="auth.user?.role" class="text-[0.72rem] text-[#8b949e] mb-1">{{ auth.user.role }}</div>
+            <button type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#e6edf3] text-[0.8rem] cursor-pointer rounded hover:text-[#58a6ff]" role="menuitem" @click="openCreateDbModal">Create new database</button>
+            <button v-if="showLogout" type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#e6edf3] text-[0.8rem] cursor-pointer rounded hover:text-[#58a6ff]" role="menuitem" @click="logout">Log out</button>
           </div>
         </div>
       </div>
@@ -1364,75 +1435,61 @@ async function submitRowUpdate() {
       </div>
     </div>
 
-    <div class="layout">
-    <aside class="left-rail" aria-label="Main navigation">
-      <div class="nav-btns">
-        <button
-          :class="{ on: nav === 'queries' && queriesTab === 'chatsql' }"
-          type="button"
-          @click="nav = 'queries'; queriesTab = 'chatsql'"
-        >
-          Chat SQL
-        </button>
-        <button :class="{ on: nav === 'tables' }" type="button" @click="nav = 'tables'; clearSelectedTable()">
-          Tables
-        </button>
-        <button :class="{ on: nav === 'history' }" type="button" @click="nav = 'history'">History</button>
-        <button
-          :class="{ on: nav === 'queries' && queriesTab !== 'chatsql' }"
-          type="button"
-          @click="nav = 'queries'; queriesTab = 'saved'"
-        >
-          Queries
-        </button>
-        <button :class="{ on: nav === 'users' }" type="button" @click="nav = 'users'">Users</button>
-        <button :class="{ on: nav === 'operations' }" type="button" @click="nav = 'operations'">Operations</button>
-      </div>
-      <div
-        v-if="nav === 'operations'"
-        class="nav-sub"
-        role="group"
-        aria-label="Operations"
-      >
-        <button
-          :class="{ on: operationsTab === 'export' }"
-          type="button"
-          @click="operationsTab = 'export'"
-        >
-          Export
-        </button>
-        <button
-          :class="{ on: operationsTab === 'import' }"
-          type="button"
-          @click="operationsTab = 'import'"
-        >
-          Import
-        </button>
-        <button
-          :class="{ on: operationsTab === 'delete' }"
-          type="button"
-          @click="operationsTab = 'delete'"
-        >
-          Delete
-        </button>
-        <button
-          :class="{ on: operationsTab === 'truncate' }"
-          type="button"
-          @click="operationsTab = 'truncate'"
-        >
-          Truncate
-        </button>
-        <button
-          :class="{ on: operationsTab === 'rename' }"
-          type="button"
-          @click="operationsTab = 'rename'"
-        >
-          Rename
-        </button>
+    <div class="flex flex-1 overflow-hidden">
+    <aside class="w-[240px] bg-[#0b0e14] border-r border-[#30363d] flex flex-col transition-all duration-300 ease-in-out shrink-0" aria-label="Main navigation">
+      <div class="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar-v2">
+        <ul class="space-y-1">
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'chatsql'">
+              <ChatAlt2Icon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>Chat SQL</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'tables') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'tables'; clearSelectedTable()">
+              <TableIcon class="w-5 h-5 shrink-0" :class="(nav === 'tables') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>Tables</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'history') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'history'">
+              <ClockIcon class="w-5 h-5 shrink-0" :class="(nav === 'history') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>History</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'saved'">
+              <CodeIcon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>Queries</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'users') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'users'">
+              <UsersIcon class="w-5 h-5 shrink-0" :class="(nav === 'users') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>Users</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'operations'">
+              <CogIcon class="w-5 h-5 shrink-0" :class="(nav === 'operations') ? 'text-emerald-400' : 'text-gray-500'" />
+              <span>Operations</span>
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="nav === 'operations'" class="mt-4 px-2 pl-9" role="group" aria-label="Operations">
+          <ul class="space-y-1 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-[#30363d]">
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'export' }" @click="operationsTab = 'export'">Export</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'import' }" @click="operationsTab = 'import'">Import</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'delete' }" @click="operationsTab = 'delete'">Delete</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'truncate' }" @click="operationsTab = 'truncate'">Truncate</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'rename' }" @click="operationsTab = 'rename'">Rename</button></li>
+          </ul>
+        </div>
       </div>
     </aside>
 
-    <main class="main">
+    <main class="flex-1 overflow-hidden transition-all duration-300 ease-in-out relative flex flex-col bg-[#0d1117]">
       <div v-if="nav === 'tables'" class="panel browse">
         <div class="pane-wide">
           <template v-if="!selectedTable">
@@ -1482,57 +1539,17 @@ async function submitRowUpdate() {
               </button>
             </div>
             <div v-if="tableTab === 'structure'" class="scroll">
-              <table class="grid">
-                <thead>
-                  <tr>
-                    <th>Column</th>
-                    <th>Type</th>
-                    <th>Nullable</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="c in columns" :key="c.column">
-                    <td>{{ c.column }}</td>
-                    <td>{{ c.data_type }}</td>
-                    <td>{{ c.is_nullable }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <CommonTable :fields="[{key: 'column', label: 'Column'}, {key: 'data_type', label: 'Type'}, {key: 'is_nullable', label: 'Nullable'}]" :items="columns" bordered striped hover />
             </div>
             <div v-else-if="tableTab === 'data'" class="scroll">
-              <table v-if="dataPreview" class="grid">
-                <thead>
-                  <tr>
-                    <th v-for="col in dataPreview.columns" :key="col">{{ col }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(row, i) in dataPreview.rows"
-                    :key="i"
-                    class="data-row"
-                    @click="openRowEditor(i)"
-                  >
-                    <td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <CommonTable v-if="dataPreview" :fields="dataPreviewFields" :items="dataPreviewItems" bordered striped hover @rowClicked="(item) => openRowEditor(item._originalIndex)" />
             </div>
             <div v-else class="scroll">
-              <table class="grid">
-                <thead>
-                  <tr>
-                    <th>Index</th>
-                    <th>Definition</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="ix in indexes" :key="ix.name">
-                    <td>{{ ix.name }}</td>
-                    <td class="mono def">{{ ix.definition || '—' }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <CommonTable :fields="[{key: 'name', label: 'Index'}, {key: 'definition', label: 'Definition'}]" :items="indexes" bordered striped hover>
+                <template #cell_definition="{ item }">
+                  <span class="mono def">{{ item.definition || '—' }}</span>
+                </template>
+              </CommonTable>
             </div>
           </template>
         </div>
@@ -1813,18 +1830,7 @@ async function submitRowUpdate() {
                     <p v-if="execError" class="error sql-results-error">{{ execError }}</p>
                     <div v-else-if="execResult" class="sql-results-body scroll">
                       <p v-if="execResult.message" class="muted">{{ execResult.message }}</p>
-                      <table v-else class="grid grid-striped">
-                        <thead>
-                          <tr>
-                            <th v-for="c in execResult.columns" :key="c">{{ c }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="(row, i) in displayExecRows" :key="i">
-                            <td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <CommonTable v-else :fields="execResultFields" :items="execResultItems" bordered striped hover />
                     </div>
                     <div v-else class="sql-results-placeholder muted small">Run a query to see results here.</div>
                   </div>
@@ -1968,133 +1974,7 @@ async function submitRowUpdate() {
 </template>
 
 <style scoped>
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: #0d1117;
-  color: #e6edf3;
-}
-.top-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-shrink: 0;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #30363d;
-  background: #0b0e14;
-  z-index: 10;
-}
-.logo {
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: -0.02em;
-}
-.header-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.header-tools {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.header-tools label {
-  font-size: 0.8rem;
-  color: #8b949e;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-.account-slot {
-  position: relative;
-  flex-shrink: 0;
-}
-.account-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
-  cursor: pointer;
-}
-.account-toggle:hover {
-  border-color: #484f58;
-  color: #fff;
-}
-.account-toggle.is-open {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff33;
-  color: #fff;
-}
-.hamburger-icon {
-  display: block;
-  pointer-events: none;
-}
-.hamburger-line {
-  transform-origin: 12px 12px;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
-}
-.account-toggle.is-open .hamburger-line-top {
-  transform: translateY(5px) rotate(45deg);
-}
-.account-toggle.is-open .hamburger-line-mid {
-  opacity: 0;
-  transform: scaleX(0);
-}
-.account-toggle.is-open .hamburger-line-bot {
-  transform: translateY(-5px) rotate(-45deg);
-}
-.account-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 220px;
-  padding: 0.65rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0b0e14;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  z-index: 30;
-}
-.account-username {
-  font-size: 0.8rem;
-  color: #e6edf3;
-  word-break: break-all;
-}
-.account-role {
-  font-size: 0.72rem;
-  color: #8b949e;
-  margin-bottom: 0.25rem;
-}
-.dropdown-item {
-  text-align: left;
-  padding: 0.35rem 0;
-  border: none;
-  background: none;
-  color: #e6edf3;
-  font-size: 0.8rem;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.dropdown-item:hover {
-  color: #58a6ff;
-}
+/* Styles removed/replaced by Tailwind utility classes */
 .dropdown-item.linkish {
   color: #58a6ff;
   padding-top: 0.5rem;

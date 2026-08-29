@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
+    "@heroicons/vue": "^1.0.6",
+    "@tailwindcss/postcss": "^4.3.3",
     "axios": "^1.15.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
@@ -20,6 +22,9 @@
     "@types/node": "^24.12.2",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/tsconfig": "^0.9.1",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.0.4",
     "vue-tsc": "^3.2.6"
