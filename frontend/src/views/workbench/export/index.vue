@@ -319,15 +319,15 @@ async function download() {
 <style scoped>
 .io-page {
   min-height: 100vh;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 .io-header {
   padding: 1rem 1.25rem 0.5rem;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid #e5e7eb;
 }
 .io-back {
-  color: #58a6ff;
+  color: #2563eb;
   text-decoration: none;
   font-size: 0.85rem;
 }
@@ -353,21 +353,21 @@ async function download() {
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .io-input {
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .io-section-label {
   margin: 0 0 0.4rem;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #8b949e;
+  color: #6b7280;
 }
 .format-grid {
   display: grid;
@@ -386,8 +386,8 @@ async function download() {
   text-align: left;
   padding: 0.85rem 1rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
   color: inherit;
   cursor: pointer;
   transition:
@@ -395,11 +395,11 @@ async function download() {
     background 0.15s;
 }
 .format-card:hover {
-  border-color: #58a6ff;
+  border-color: #2563eb;
 }
 .format-card.active {
-  border-color: #58a6ff;
-  background: #21262d;
+  border-color: #2563eb;
+  background: #f3f4f6;
 }
 .format-name {
   display: block;
@@ -413,8 +413,8 @@ async function download() {
 .info-panel {
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
 }
 .info-title {
   margin: 0 0 0.5rem;
@@ -428,12 +428,12 @@ async function download() {
   color: #c9d1d9;
 }
 .error {
-  color: #f85149;
+  color: #ef4444;
   font-size: 0.85rem;
   margin-bottom: 0.75rem;
 }
 .muted {
-  color: #8b949e;
+  color: #6b7280;
 }
 .small {
   font-size: 0.78rem;
@@ -447,8 +447,8 @@ async function download() {
   right: 0;
   bottom: 0;
   padding: 0.75rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom));
-  border-top: 1px solid #30363d;
-  background: #161b22;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
   display: flex;
   justify-content: center;
   z-index: 20;
@@ -460,7 +460,7 @@ async function download() {
   border: none;
   font-weight: 600;
   cursor: pointer;
-  background: #238636;
+  background: #059669;
   color: #fff;
 }
 .footer-btn:disabled {

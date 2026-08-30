@@ -51,6 +51,17 @@ func Bootstrap(ctx context.Context, db *sql.DB) error {
 			updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS saved_queries_user_conn_idx ON saved_queries(user_id, connection_id)`,
+		`CREATE TABLE IF NOT EXISTS table_preferences (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			connection_id INTEGER NOT NULL REFERENCES db_connections(id) ON DELETE CASCADE,
+			schema_name TEXT NOT NULL,
+			table_name TEXT NOT NULL,
+			preferences_json TEXT NOT NULL DEFAULT '{}',
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(user_id, connection_id, schema_name, table_name)
+		)`,
+		`CREATE INDEX IF NOT EXISTS table_preferences_idx ON table_preferences(user_id, connection_id)`,
 	}
 	for _, s := range stmts {
 		if _, err := db.ExecContext(ctx, s); err != nil {

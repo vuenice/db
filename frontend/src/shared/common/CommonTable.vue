@@ -4,11 +4,11 @@
       class="w-full "
       :class="[ props.borderRounded ? 'rounded-lg' : '']"
     >
-      <thead :class="['bg-grayCust-50 border-b']">
+      <thead :class="['bg-gradient-to-b from-gray-50 to-gray-200 border-b border-gray-300']">
         <tr>
           <th
             v-if="props.selectTable"
-            :class="['pl-8 py-3 w-10 cursor-pointer text-grayCust-600 font-medium text-xs border-b', props.bordered ? 'border border-grayCust-160' : '']"
+            :class="['pl-3 py-1.5 w-10 cursor-pointer text-gray-800 font-medium text-[12px] border-b', props.bordered ? 'border border-grayCust-160' : '']"
             scope="col"
           >
             <Checkbox
@@ -22,7 +22,7 @@
             v-for="(field, colindex) in tableFields"
             :key="field.key"
             :class="[
-              'px-4 py-3 text-grayCust-500 font-medium text-xs border-b',
+              'px-2 py-1.5 text-gray-800 font-medium text-[12px] border-b border-gray-300',
               props.bordered ? 'border border-grayCust-160' : '',
               field.sortable ? 'cursor-pointer' : 'cursor-default',
               field.headerClass,
@@ -38,7 +38,7 @@
             @click="field.sortable && sortTable(field.key)"
           >
             <div
-              class="flex items-center gap-2 uppercase whitespace-nowrap"
+              class="flex items-center gap-2 whitespace-nowrap"
               :class="[field.headerClass, field.key === 'action' ? 'justify-center' : 'justify-start']"
             >
               <slot
@@ -111,7 +111,7 @@
           <tr
             :class="[
               item.trClass,
-              item.selected || activeRow === item ? 'bg-indigo-50' : (props.striped ? 'even:bg-grayCust-50' : ''),
+              item.selected || activeRow === item ? 'bg-indigo-50' : (props.striped ? 'even:bg-gray-100' : ''),
               props.hover && !(item.selected || activeRow === item) ? 'hover:bg-grayCust-100 transition-colors duration-150' : '',
               props.bordered && props.borderRounded ? 'last:border-b-0' : '',
               // props.rowBordered && items.data.length > 1 && index !== items.data.length - 1 
@@ -128,7 +128,7 @@
           >
             <td
               v-if="props.selectTable"
-              class="pl-8 py-4 text-start"
+              class="pl-3 py-1 text-start"
               :class="[item.disabled ? 'bg-grayCust-50' : '', props.bordered ? 'border border-grayCust-160' : '']"
             >
               <Checkbox
@@ -141,8 +141,9 @@
             <td
               v-for="field in tableFields"
               :key="field.key"
-              :class="['px-4 py-4 text-start relative', field.class, item.disabled ? 'bg-grayCust-50' : '', field.hide ? 'hidden' : '', props.bordered ? 'border border-grayCust-160' : '', 'hover:bg-grayCust-200 hover:shadow-inner transition-colors duration-150 cursor-pointer']"
+              :class="['px-2 py-1 text-start relative text-[12px] text-gray-800', field.class, item.disabled ? 'bg-grayCust-50' : '', field.hide ? 'hidden' : '', props.bordered ? 'border border-grayCust-160' : '', 'hover:bg-gray-200 hover:shadow-inner transition-colors duration-150 cursor-pointer']"
               :style="field.width ? `min-width: ${field.width}; max-width: ${field.width};` : 'min-width: auto; max-width: auto;'"
+              @contextmenu.prevent="onContextMenu($event, item, field, itemIndex)"
             >
               <slot
                 :name="`cell_${field.key}`"
@@ -251,7 +252,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['update:sortBy', 'update:sortDesc', 'sortChanged', 'rowClicked', 'rowDbClicked', 'selectionChanged', 'page-change']);
+const emit = defineEmits(['update:sortBy', 'update:sortDesc', 'sortChanged', 'rowClicked', 'rowDbClicked', 'selectionChanged', 'page-change', 'rightClick']);
 
 const activeRow = ref(null);
 const localSortBy = ref(props.sortBy);
@@ -375,6 +376,10 @@ const rowSelectionChanged = (item, selected) => {
   item.selected = selected;
   checkSelectAllState();
   emit("selectionChanged", localItems.value.filter((item) => item.selected));
+};
+
+const onContextMenu = (e, item, field, index) => {
+  emit("rightClick", { event: e, item, field, index });
 };
 </script>
 

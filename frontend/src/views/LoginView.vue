@@ -59,30 +59,30 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-[#0f1419] text-[#e6edf3] p-4">
-    <p v-if="pageLoading" class="m-0 text-[#8b949e] text-[0.9rem]">Loading…</p>
-    <form v-else class="w-full max-w-[400px] p-8 rounded-xl bg-[#161b22] border border-[#30363d] flex flex-col gap-3" @submit.prevent="submit">
+  <div class="min-h-screen flex items-center justify-center bg-[#f9fafb] text-[#111827] p-4">
+    <p v-if="pageLoading" class="m-0 text-[#6b7280] text-[0.9rem]">Loading…</p>
+    <form v-else class="w-full max-w-[400px] p-8 rounded-xl bg-[#ffffff] border border-[#e5e7eb] flex flex-col gap-3" @submit.prevent="submit">
       <h1 class="m-0 text-2xl">ChatDB</h1>
-      <p class="m-0 text-[#8b949e] text-[0.9rem]">PostgreSQL &amp; MySQL viewer</p>
-      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
+      <p class="m-0 text-[#6b7280] text-[0.9rem]">PostgreSQL &amp; MySQL viewer</p>
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#6b7280]">
         Connection label
-        <select v-model="connectionName" required class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]">
+        <select v-model="connectionName" required class="px-[0.6rem] py-2 rounded-md border border-[#e5e7eb] bg-[#f9fafb] text-[#111827]">
           <option v-for="l in labels" :key="l" :value="l">{{ l }}</option>
         </select>
       </label>
-      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#6b7280]">
         Username
-        <input v-model="username" type="text" required autocomplete="username" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
+        <input v-model="username" type="text" required autocomplete="username" class="px-[0.6rem] py-2 rounded-md border border-[#e5e7eb] bg-[#f9fafb] text-[#111827]" />
       </label>
-      <label class="flex flex-col gap-1 text-[0.85rem] text-[#8b949e]">
+      <label class="flex flex-col gap-1 text-[0.85rem] text-[#6b7280]">
         Password
-        <input v-model="password" type="password" autocomplete="current-password" class="px-[0.6rem] py-2 rounded-md border border-[#30363d] bg-[#0d1117] text-[#e6edf3]" />
+        <input v-model="password" type="password" autocomplete="current-password" class="px-[0.6rem] py-2 rounded-md border border-[#e5e7eb] bg-[#f9fafb] text-[#111827]" />
       </label>
 
-      <p v-if="error" class="text-[#f85149] m-0 text-[0.85rem]">{{ error }}</p>
-      <button type="submit" class="mt-2 p-[0.6rem] border-none rounded-md bg-[#238636] text-white font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default" :disabled="loading || pageLoading">{{ loading ? '…' : 'Login' }}</button>
+      <p v-if="error" class="text-[#ef4444] m-0 text-[0.85rem]">{{ error }}</p>
+      <button type="submit" class="mt-2 p-[0.6rem] border-none rounded-md bg-[#059669] text-white font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-default" :disabled="loading || pageLoading">{{ loading ? '…' : 'Login' }}</button>
       <p v-if="auth.hasUsers !== false" class="m-0 text-[0.85rem] text-center">
-        <RouterLink to="/register" class="text-[#58a6ff] no-underline hover:underline">Register new connection</RouterLink>
+        <RouterLink to="/register" class="text-[#2563eb] no-underline hover:underline">Register new connection</RouterLink>
       </p>
     </form>
   </div>

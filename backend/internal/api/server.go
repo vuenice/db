@@ -78,6 +78,8 @@ r.Post("/connections/{id}/truncate", s.handleTruncateDatabase)
 			r.Get("/connections/{id}/indexes", s.handleListIndexes)
 			r.Get("/connections/{id}/rows", s.handlePreviewRows)
 			r.Post("/connections/{id}/rows/update", s.handleUpdateTableRow)
+			r.Get("/connections/{id}/table_preferences", s.handleGetTablePreferences)
+			r.Post("/connections/{id}/table_preferences", s.handleSaveTablePreferences)
 
 			r.Post("/connections/{id}/sql/execute", s.handleSQLExecute)
 			r.Post("/connections/{id}/sql/cancel", s.handleSQLCancel)

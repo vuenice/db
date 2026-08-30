@@ -1410,10 +1410,20 @@ async function submitRowUpdate() {
           </template>
 
           <template v-else>
-            <div class="tables-detail-topbar">
-              <button type="button" class="ghost" @click="clearSelectedTable">All tables</button>
-              <div class="tables-detail-title">
-                <h3>{{ selectedTable.schema }}.{{ selectedTable.name }}</h3>
+            <div class="w-full bg-white border-b border-gray-200">
+              <div class="flex flex-wrap justify-between gap-[14px] px-4 py-3 lg:pl-6">
+                <div class="flex items-center gap-2 h-[34px]">
+                  <div class="h-5 w-px bg-gray-300 hidden lg:block mr-2" />
+                  <a href="#" @click.prevent="clearSelectedTable" class="cursor-pointer hover:no-underline">
+                    <span class="text-lg font-medium leading-[34px] text-gray-500 hover:text-gray-800">Tables</span>
+                  </a>
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                  <span class="text-lg font-medium leading-[34px] text-gray-900">{{ selectedTable.name }}</span>
+                </div>
               </div>
             </div>
             <div class="tabs">
@@ -1811,8 +1821,8 @@ async function submitRowUpdate() {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 .top-header {
   display: flex;
@@ -1820,8 +1830,8 @@ async function submitRowUpdate() {
   gap: 1rem;
   flex-shrink: 0;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid #30363d;
-  background: #0b0e14;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f3f4f6;
   z-index: 10;
 }
 .logo {
@@ -1845,7 +1855,7 @@ async function submitRowUpdate() {
 }
 .header-tools label {
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -1862,18 +1872,18 @@ async function submitRowUpdate() {
   height: 2.25rem;
   padding: 0;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   cursor: pointer;
 }
 .account-toggle:hover {
-  border-color: #484f58;
+  border-color: #d1d5db;
   color: #fff;
 }
 .account-toggle.is-open {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff33;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #bfdbfe;
   color: #fff;
 }
 .hamburger-icon {
@@ -1903,8 +1913,8 @@ async function submitRowUpdate() {
   min-width: 220px;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0b0e14;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
@@ -1913,12 +1923,12 @@ async function submitRowUpdate() {
 }
 .account-username {
   font-size: 0.8rem;
-  color: #e6edf3;
+  color: #111827;
   word-break: break-all;
 }
 .account-role {
   font-size: 0.72rem;
-  color: #8b949e;
+  color: #6b7280;
   margin-bottom: 0.25rem;
 }
 .dropdown-item {
@@ -1926,19 +1936,19 @@ async function submitRowUpdate() {
   padding: 0.35rem 0;
   border: none;
   background: none;
-  color: #e6edf3;
+  color: #111827;
   font-size: 0.8rem;
   cursor: pointer;
   border-radius: 4px;
 }
 .dropdown-item:hover {
-  color: #58a6ff;
+  color: #2563eb;
 }
 .dropdown-item.linkish {
-  color: #58a6ff;
+  color: #2563eb;
   padding-top: 0.5rem;
   margin-top: 0.25rem;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
 }
 .modal-backdrop {
   position: fixed;
@@ -1955,9 +1965,9 @@ async function submitRowUpdate() {
   max-width: 400px;
   padding: 1.25rem;
   border-radius: 10px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .modal-title {
   margin: 0 0 0.5rem;
@@ -1969,14 +1979,14 @@ async function submitRowUpdate() {
   gap: 0.35rem;
   margin-top: 0.75rem;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .modal-field input {
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .modal-actions {
   display: flex;
@@ -2011,14 +2021,14 @@ async function submitRowUpdate() {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #8b949e;
+  color: #6b7280;
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
 }
 .modal-close:hover {
-  color: #e6edf3;
-  background: #21262d;
+  color: #111827;
+  background: #f3f4f6;
 }
 .modal-fields {
   max-height: min(60vh, 420px);
@@ -2028,7 +2038,7 @@ async function submitRowUpdate() {
 }
 .modal-preview {
   margin-top: 0.75rem;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   padding-top: 0.75rem;
 }
 .modal-preview-title {
@@ -2038,9 +2048,9 @@ async function submitRowUpdate() {
   margin: 0;
   padding: 0.5rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 160px;
@@ -2050,23 +2060,23 @@ async function submitRowUpdate() {
   cursor: pointer;
 }
 .data-row:hover {
-  background: #21262d;
+  background: #f3f4f6;
 }
 .layout {
   display: flex;
   flex: 1;
   min-height: 0;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 .left-rail {
   width: 240px;
-  border-right: 1px solid #30363d;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   padding: 0.75rem;
   gap: 0.5rem;
-  background: #010409;
+  background: #f9fafb;
   min-height: 0;
 }
 .nav-btns {
@@ -2083,16 +2093,16 @@ async function submitRowUpdate() {
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: #e6edf3;
+  color: #111827;
   cursor: pointer;
   font-size: 0.85rem;
 }
 .nav-btns button.on {
-  background: #1f6feb33;
-  border-color: #1f6feb;
+  background: #dbeafe;
+  border-color: #3b82f6;
 }
 .nav-btns button:hover:not(.on) {
-  background: #161b22;
+  background: #ffffff;
 }
 .history-workspace {
   flex: 1;
@@ -2105,22 +2115,22 @@ async function submitRowUpdate() {
   width: min(100%, 320px);
   min-width: 220px;
   max-width: 36%;
-  border-right: 1px solid #30363d;
-  background: #0b0e14;
+  border-right: 1px solid #e5e7eb;
+  background: #f3f4f6;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 .history-list-head {
   padding: 0.75rem 0.9rem 0.55rem;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid #f3f4f6;
   flex-shrink: 0;
 }
 .history-list-title {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #e6edf3;
+  color: #111827;
   letter-spacing: -0.02em;
 }
 .history-search {
@@ -2128,9 +2138,9 @@ async function submitRowUpdate() {
   font-size: 0.8rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .history-groups {
   flex: 1;
@@ -2170,7 +2180,7 @@ async function submitRowUpdate() {
   padding: 0.45rem 0.5rem 0.5rem 0.55rem;
   margin-bottom: 0.15rem;
   cursor: pointer;
-  color: #e6edf3;
+  color: #111827;
   position: relative;
   transition: background 0.12s ease;
 }
@@ -2179,13 +2189,13 @@ async function submitRowUpdate() {
   font-weight: 600;
 }
 .history-item.is-active {
-  background: #161b22;
-  border-color: #30363d;
-  box-shadow: inset 3px 0 0 #1f6feb;
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 .history-item:hover:not(.is-active) {
-  background: #161b22aa;
-  border-color: #21262d;
+  background: #ffffffaa;
+  border-color: #f3f4f6;
 }
 .history-item-title {
   display: flex;
@@ -2201,7 +2211,7 @@ async function submitRowUpdate() {
 .history-item-snippet {
   margin: 0.25rem 0 0;
   font-size: 0.72rem;
-  color: #8b949e;
+  color: #6b7280;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2216,7 +2226,7 @@ async function submitRowUpdate() {
   text-transform: lowercase;
   padding: 0.12rem 0.4rem;
   border-radius: 4px;
-  background: #23863622;
+  background: #05966922;
   color: #3fb950;
   border: 1px solid #2ea04355;
   letter-spacing: 0.02em;
@@ -2226,7 +2236,7 @@ async function submitRowUpdate() {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
+  background: #f9fafb;
   padding: 0.6rem 1rem 0;
   min-height: 0;
   overflow: auto;
@@ -2239,14 +2249,14 @@ async function submitRowUpdate() {
   gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid #e5e7eb;
 }
 .history-detail-h1 {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
   font-weight: 600;
   line-height: 1.2;
-  color: #e6edf3;
+  color: #111827;
 }
 .history-detail-meta {
   margin: 0;
@@ -2254,7 +2264,7 @@ async function submitRowUpdate() {
 }
 .history-detail-sep {
   margin: 0 0.35rem;
-  color: #484f58;
+  color: #d1d5db;
 }
 .history-detail-actions {
   display: flex;
@@ -2268,16 +2278,16 @@ async function submitRowUpdate() {
 }
 .history-trash {
   padding: 0.3rem 0.45rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .history-trash:hover {
-  color: #f85149;
-  border-color: #f8514955;
+  color: #ef4444;
+  border-color: #ef444455;
 }
 .history-prompt {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
-  background: #0b0e14;
+  background: #f3f4f6;
   padding: 0.5rem 0.75rem 0.6rem;
   margin-bottom: 0.85rem;
 }
@@ -2297,10 +2307,10 @@ async function submitRowUpdate() {
   color: #c9d1d9;
 }
 .history-sql-block {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  background: #161b22;
+  background: #ffffff;
   margin-bottom: 0.75rem;
 }
 .history-sql-head {
@@ -2309,9 +2319,9 @@ async function submitRowUpdate() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #8b949e;
-  border-bottom: 1px solid #21262d;
-  background: #0b0e14;
+  color: #6b7280;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f3f4f6;
 }
 .history-sql-body {
   margin: 0;
@@ -2323,12 +2333,12 @@ async function submitRowUpdate() {
   word-break: break-word;
   max-height: min(50vh, 400px);
   overflow: auto;
-  background: #0d1117;
+  background: #f9fafb;
 }
 .history-exec-hint {
   display: inline-block;
   font-size: 0.78rem;
-  color: #58a6ff;
+  color: #2563eb;
   text-decoration: none;
   margin-bottom: 0.75rem;
   cursor: pointer;
@@ -2344,12 +2354,12 @@ async function submitRowUpdate() {
   gap: 0.5rem;
   margin-top: auto;
   padding: 0.5rem 0;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid #f3f4f6;
   font-size: 0.75rem;
-  color: #8b949e;
+  color: #6b7280;
   position: sticky;
   bottom: 0;
-  background: linear-gradient(180deg, transparent, #0d1117 20%);
+  background: linear-gradient(180deg, transparent, #f9fafb 20%);
   padding-top: 0.75rem;
   margin-bottom: 0.5rem;
 }
@@ -2377,7 +2387,7 @@ async function submitRowUpdate() {
     max-width: none;
     min-height: 200px;
     border-right: none;
-    border-bottom: 1px solid #30363d;
+    border-bottom: 1px solid #e5e7eb;
   }
 }
 .tables-topbar {
@@ -2397,9 +2407,9 @@ async function submitRowUpdate() {
   align-items: start;
 }
 .tables-group {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
-  background: #0b0e14;
+  background: #f3f4f6;
   padding: 0.75rem;
   min-width: 0;
 }
@@ -2409,7 +2419,7 @@ async function submitRowUpdate() {
   letter-spacing: -0.02em;
   line-height: 1;
   margin-bottom: 0.5rem;
-  color: #e6edf3;
+  color: #111827;
 }
 .tables-items {
   display: grid;
@@ -2418,17 +2428,17 @@ async function submitRowUpdate() {
 }
 .table-chip {
   text-align: left;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   border-radius: 8px;
   padding: 0.4rem 0.5rem;
   cursor: pointer;
   min-width: 0;
 }
 .table-chip:hover {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff22;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb22;
 }
 .table-chip-name {
   display: block;
@@ -2441,7 +2451,7 @@ async function submitRowUpdate() {
 .table-chip-kind {
   display: block;
   font-size: 0.7rem;
-  color: #8b949e;
+  color: #6b7280;
   margin-top: 0.15rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -2458,7 +2468,7 @@ async function submitRowUpdate() {
 .link {
   background: none;
   border: none;
-  color: #58a6ff;
+  color: #2563eb;
   cursor: pointer;
   padding: 0;
   text-align: left;
@@ -2495,8 +2505,8 @@ async function submitRowUpdate() {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #0b0e14;
-  border-right: 1px solid #30363d;
+  background: #f3f4f6;
+  border-right: 1px solid #e5e7eb;
 }
 .sql-workbench-actions {
   display: flex;
@@ -2508,7 +2518,7 @@ async function submitRowUpdate() {
   flex-shrink: 0;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid #f3f4f6;
 }
 .run-query-btn {
   display: inline-flex;
@@ -2548,8 +2558,8 @@ async function submitRowUpdate() {
   min-height: 0;
   min-width: 0;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
   overflow: hidden;
 }
 .sql-gutter {
@@ -2562,8 +2572,8 @@ async function submitRowUpdate() {
   font-size: 0.85rem;
   line-height: 1.5;
   user-select: none;
-  background: #0b0e14;
-  border-right: 1px solid #21262d;
+  background: #f3f4f6;
+  border-right: 1px solid #f3f4f6;
 }
 .sql-gutter-line {
   min-height: 1.5em;
@@ -2580,15 +2590,15 @@ async function submitRowUpdate() {
   font-size: 0.85rem;
   line-height: 1.5;
   padding: 0.5rem 0.55rem;
-  background: #161b22;
-  color: #e6edf3;
+  background: #ffffff;
+  color: #111827;
   white-space: pre;
   overflow: auto;
   tab-size: 2;
 }
 .sql-input:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px #58a6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
 }
 .sql-results-stack {
   flex: 1 1 45%;
@@ -2596,8 +2606,8 @@ async function submitRowUpdate() {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-top: 1px solid #30363d;
-  background: #0b0e14;
+  border-top: 1px solid #e5e7eb;
+  background: #f3f4f6;
 }
 .sql-results-head {
   display: flex;
@@ -2606,8 +2616,8 @@ async function submitRowUpdate() {
   justify-content: space-between;
   gap: 0.4rem 0.75rem;
   padding: 0.45rem 0.9rem;
-  border-bottom: 1px solid #21262d;
-  background: #0b0e14;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f3f4f6;
 }
 .sql-results-title {
   display: flex;
@@ -2621,7 +2631,7 @@ async function submitRowUpdate() {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8b949e;
+  color: #6b7280;
 }
 .sql-results-meta {
   font-size: 0.78rem;
@@ -2637,9 +2647,9 @@ async function submitRowUpdate() {
   padding: 0.2rem 0.4rem;
   font-size: 0.75rem;
   border-radius: 4px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .sql-results-error {
   margin: 0.4rem 0.9rem 0;
@@ -2680,8 +2690,8 @@ async function submitRowUpdate() {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 @media (max-width: 1024px) {
   .chatsql-split {
@@ -2693,7 +2703,7 @@ async function submitRowUpdate() {
     max-width: none;
     min-height: 240px;
     border-left: none;
-    border-top: 1px solid #30363d;
+    border-top: 1px solid #e5e7eb;
   }
   .chatsql-main {
     border-right: none;
@@ -2701,8 +2711,8 @@ async function submitRowUpdate() {
 }
 .ai-panel-header {
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #30363d;
-  background: #010409;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
 }
 .ai-panel-title {
   font-size: 0.85rem;
@@ -2741,14 +2751,14 @@ async function submitRowUpdate() {
   line-height: 1.45;
 }
 .ai-bubble-user {
-  background: #21262d;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   padding: 0.5rem 0.65rem;
-  color: #e6edf3;
+  color: #111827;
 }
 .ai-bubble-assistant {
-  background: #0b0e14;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   padding: 0.5rem 0.6rem 0.55rem;
   width: 100%;
 }
@@ -2762,8 +2772,8 @@ async function submitRowUpdate() {
   margin: 0 0 0.5rem;
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   color: #79c0ff;
   font-size: 0.75rem;
   line-height: 1.4;
@@ -2785,7 +2795,7 @@ async function submitRowUpdate() {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  background: #1f6feb;
+  background: #3b82f6;
   color: #fff;
 }
 .apply-sql-btn:hover {
@@ -2796,7 +2806,7 @@ async function submitRowUpdate() {
   background: none;
   padding: 0.25rem 0;
   font-size: 0.78rem;
-  color: #58a6ff;
+  color: #2563eb;
   cursor: pointer;
   text-decoration: none;
 }
@@ -2805,8 +2815,8 @@ async function submitRowUpdate() {
 }
 .ai-composer {
   flex-shrink: 0;
-  border-top: 1px solid #30363d;
-  background: #010409;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
   padding: 0.5rem 0.6rem 0.6rem;
   display: flex;
   flex-direction: column;
@@ -2820,16 +2830,16 @@ async function submitRowUpdate() {
   font-size: 0.8rem;
   line-height: 1.4;
   font-family: inherit;
-  background: #161b22;
-  color: #e6edf3;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
 }
 .ai-composer-input:focus {
   outline: none;
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff40;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb40;
 }
 .ai-composer-row {
   display: flex;
@@ -2860,21 +2870,21 @@ select,
 input.search {
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .ghost {
-  border: 1px solid #30363d;
-  background: #21262d;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #111827;
   border-radius: 6px;
   padding: 0.35rem 0.75rem;
   cursor: pointer;
 }
 .primary {
   border: none;
-  background: #238636;
+  background: #059669;
   color: #fff;
   border-radius: 6px;
   padding: 0.45rem 1rem;
@@ -2906,7 +2916,7 @@ h3 {
 }
 .sep {
   border: none;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   margin: 1rem 0;
 }
 .pill-list {
@@ -2921,8 +2931,8 @@ h3 {
   font-size: 0.75rem;
   padding: 0.2rem 0.45rem;
   border-radius: 999px;
-  background: #21262d;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
 }
 .list {
   list-style: none;
@@ -2936,10 +2946,10 @@ h3 {
   font-size: 0.85rem;
 }
 .left-rail .list li:hover {
-  background: #21262d;
+  background: #f3f4f6;
 }
 .kind {
-  color: #8b949e;
+  color: #6b7280;
   margin-right: 0.25rem;
 }
 .scroll {
@@ -2961,12 +2971,12 @@ h3 {
 }
 .grid th,
 .grid td {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   padding: 0.25rem 0.35rem;
   text-align: left;
 }
 .muted {
-  color: #8b949e;
+  color: #6b7280;
 }
 .small {
   font-size: 0.8rem;
@@ -2979,13 +2989,13 @@ h3 {
 .tabs button {
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   cursor: pointer;
 }
 .tabs button.on {
-  border-color: #58a6ff;
+  border-color: #2563eb;
 }
 .qtabs {
   padding: 0.5rem 1rem 0;
@@ -2996,12 +3006,12 @@ h3 {
   padding-bottom: 0.5rem;
 }
 .error {
-  color: #f85149;
+  color: #ef4444;
   margin: 0.25rem 0;
 }
 .side-list {
   height: 200px;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   padding: 0.5rem;
 }
 .side-list.full {
@@ -3010,7 +3020,7 @@ h3 {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
 }
 .list-fill {
   flex: 1;
@@ -3228,7 +3238,7 @@ h3 {
 .snippet {
   margin: 0.15rem 0 0;
   font-size: 0.7rem;
-  color: #8b949e;
+  color: #6b7280;
   white-space: pre-wrap;
 }
 .user-form {
@@ -3243,18 +3253,18 @@ h3 {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .user-form input,
 .user-form select {
   padding: 0.35rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .hint {
   padding: 1rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 </style>

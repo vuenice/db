@@ -113,6 +113,109 @@ const rowEditFields = ref<Record<string, string>>({})
 const rowEditError = ref('')
 const rowEditBusy = ref(false)
 
+const contextMenuVisible = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextTargetItem = ref<any>(null)
+const contextTargetField = ref<any>(null)
+const editSingleField = ref<string | null>(null)
+const showSearchHeader = ref(false)
+const searchHeaderQuery = ref('')
+
+function handleTableRightClick({ event, item, field }: any) {
+  contextMenuVisible.value = true
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+  contextTargetItem.value = item
+  contextTargetField.value = field
+}
+
+function closeContextMenu() {
+  contextMenuVisible.value = false
+}
+
+const sortAsc = ref(true)
+
+function actionUpdateField() {
+  openRowEditor(contextTargetItem.value._originalIndex, contextTargetField.value.key)
+  closeContextMenu()
+}
+
+function actionUpdateRecord() {
+  openRowEditor(contextTargetItem.value._originalIndex)
+  closeContextMenu()
+}
+
+function actionSort() {
+  if (!dataPreview.value || !contextTargetField.value) return
+  const colIndex = parseInt(contextTargetField.value.key)
+  sortAsc.value = !sortAsc.value
+  const isAsc = sortAsc.value
+  
+  dataPreview.value.rows.sort((a, b) => {
+    const valA = a[colIndex] as any
+    const valB = b[colIndex] as any
+    if (valA < valB) return isAsc ? -1 : 1
+    if (valA > valB) return isAsc ? 1 : -1
+    return 0
+  })
+  closeContextMenu()
+  saveTablePreferences(colIndex)
+}
+
+function actionShiftToStart() {
+  if (!contextTargetField.value) return
+  const colIndex = parseInt(contextTargetField.value.key)
+  const idx = customColumnOrder.value.indexOf(colIndex)
+  if (idx > -1) {
+    customColumnOrder.value.splice(idx, 1)
+    customColumnOrder.value.unshift(colIndex)
+  }
+  closeContextMenu()
+  saveTablePreferences()
+}
+
+function actionShiftToEnd() {
+  if (!contextTargetField.value) return
+  const colIndex = parseInt(contextTargetField.value.key)
+  const idx = customColumnOrder.value.indexOf(colIndex)
+  if (idx > -1) {
+    customColumnOrder.value.splice(idx, 1)
+    customColumnOrder.value.push(colIndex)
+  }
+  closeContextMenu()
+  saveTablePreferences()
+}
+
+function actionSearch() {
+  showSearchHeader.value = true
+  closeContextMenu()
+}
+
+function actionRelated() {
+  console.log("Related clicked for", contextTargetField.value, contextTargetItem.value)
+  closeContextMenu()
+}
+
+function executeSearch() {
+  if (!dataPreview.value) return
+  const q = searchHeaderQuery.value.trim().toLowerCase()
+  if (!q) {
+    // If empty, re-fetch or clear filter. For now, since it's client-side mocked, we don't have the original unfiltered data unless we reload.
+    loadRows()
+    return
+  }
+  
+  // Local filter
+  const filteredRows = dataPreview.value.rows.filter(row => 
+    row.some(cell => String(cell ?? '').toLowerCase().includes(q))
+  )
+  dataPreview.value = {
+    ...dataPreview.value,
+    rows: filteredRows
+  }
+}
+
 const loginUsers = ref<{ name: string; host?: string }[]>([])
 const newDbUsername = ref('')
 const newDbPassword = ref('')
@@ -166,9 +269,64 @@ const execResultItems = computed(() => {
   })
 })
 
+const customColumnOrder = ref<number[]>([])
+const currentSortColumn = ref<number>(-1)
+
+async function saveTablePreferences(sortColIndex = -1) {
+  if (sortColIndex !== -1) currentSortColumn.value = sortColIndex
+  if (!selectedConnId.value || !selectedTable.value) return
+  const pref = {
+     customColumnOrder: customColumnOrder.value,
+     sortAsc: sortAsc.value,
+     sortColumn: currentSortColumn.value
+  }
+  try {
+     await http.post(`/api/connections/${selectedConnId.value}/table_preferences`, {
+         schema: selectedTable.value.schema,
+         table: selectedTable.value.name,
+         preferences: JSON.stringify(pref)
+     })
+  } catch(e) {}
+}
+
+watch(dataPreview, async (newVal) => {
+  if (newVal) {
+    customColumnOrder.value = newVal.columns.map((_, i) => i)
+    if (selectedConnId.value && selectedTable.value) {
+      try {
+        const { data } = await http.get(
+          `/api/connections/${selectedConnId.value}/table_preferences`,
+          { params: { schema: selectedTable.value.schema, table: selectedTable.value.name, ...dbParams() } }
+        )
+        if (data && data.preferences) {
+           const pref = JSON.parse(data.preferences)
+           if (pref.customColumnOrder && Array.isArray(pref.customColumnOrder) && pref.customColumnOrder.length === newVal.columns.length) {
+              customColumnOrder.value = pref.customColumnOrder
+           }
+           if (pref.sortColumn !== undefined && pref.sortColumn !== -1) {
+              currentSortColumn.value = pref.sortColumn
+              sortAsc.value = pref.sortAsc
+              const isAsc = sortAsc.value
+              newVal.rows.sort((a, b) => {
+                 const valA = a[pref.sortColumn] as any
+                 const valB = b[pref.sortColumn] as any
+                 if (valA < valB) return isAsc ? -1 : 1
+                 if (valA > valB) return isAsc ? 1 : -1
+                 return 0
+              })
+           }
+        }
+      } catch (e) {}
+    }
+  }
+})
+
 const dataPreviewFields = computed(() => {
   if (!dataPreview.value) return []
-  return dataPreview.value.columns.map((c, i) => ({ key: String(i), label: c }))
+  return customColumnOrder.value.map(i => ({
+    key: String(i),
+    label: dataPreview.value!.columns[i]
+  }))
 })
 
 const dataPreviewItems = computed(() => {
@@ -1194,7 +1352,8 @@ function closeRowEditor() {
   rowEditFields.value = {}
 }
 
-async function openRowEditor(rowIndex: number) {
+async function openRowEditor(rowIndex: number, singleField: string | null = null) {
+  editSingleField.value = singleField;
   const preview = dataPreview.value
   if (!preview || !selectedTable.value || !selectedConnId.value) return
   const row = preview.rows[rowIndex]
@@ -1250,8 +1409,8 @@ async function submitRowUpdate() {
 </script>
 
 <template>
-  <div class="relative h-screen flex flex-col overflow-hidden text-[#e6edf3] bg-[#0d1117]">
-    <header class="flex justify-between items-center w-full bg-[#0b0e14] py-2 px-4 h-[50px] border-b border-[#30363d] shrink-0 z-10">
+  <div class="relative h-screen flex flex-col overflow-hidden text-[#111827] bg-[#f9fafb]">
+    <header class="flex justify-between items-center w-full bg-[#f3f4f6] py-2 px-4 h-[50px] border-b border-[#e5e7eb] shrink-0 z-10">
       <div class="h-[24px] flex items-center">
         <div class="text-white font-bold text-xl tracking-wider flex items-center gap-2">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1274,10 +1433,10 @@ async function submitRowUpdate() {
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
-              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
                   <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Database</div>
-                  <button v-for="d in databases" :key="d" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedPhysicalDatabase = d">
+                  <button v-for="d in databases" :key="d" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedPhysicalDatabase = d">
                     <DatabaseIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">{{ d }}</span>
                   </button>
@@ -1296,14 +1455,14 @@ async function submitRowUpdate() {
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
-              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
                   <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Role</div>
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = ''">
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = ''">
                     <UsersIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">(session default)</span>
                   </button>
-                  <button v-for="r in catalogRoles" :key="r" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = r">
+                  <button v-for="r in catalogRoles" :key="r" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = r">
                     <UsersIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">{{ r }}</span>
                   </button>
@@ -1322,10 +1481,10 @@ async function submitRowUpdate() {
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
-              <PopoverPanel class="absolute right-0 z-50 mt-2 w-32 origin-top-right rounded-md bg-[#161b22] border border-[#30363d] shadow-lg focus:outline-none">
+              <PopoverPanel class="absolute right-0 z-50 mt-2 w-32 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="py-1">
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm text-gray-200" @click="poolMode = 'read'">Read</button>
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#21262d] flex items-center text-sm text-gray-200" @click="poolMode = 'write'">Write</button>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm text-gray-200" @click="poolMode = 'read'">Read</button>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm text-gray-200" @click="poolMode = 'write'">Write</button>
                 </div>
               </PopoverPanel>
             </transition>
@@ -1337,8 +1496,8 @@ async function submitRowUpdate() {
         <div ref="accountWrap" class="relative">
           <button
             type="button"
-            class="account-toggle flex items-center justify-center w-8 h-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#e6edf3] hover:border-[#484f58] hover:text-white transition-colors"
-            :class="{ 'border-[#58a6ff] shadow-[0_0_0_1px_rgba(88,166,255,0.2)] text-white': accountMenuOpen }"
+            class="account-toggle flex items-center justify-center w-8 h-8 rounded-md border border-[#e5e7eb] bg-[#ffffff] text-[#111827] hover:border-[#d1d5db] hover:text-white transition-colors"
+            :class="{ 'border-[#2563eb] shadow-[0_0_0_1px_rgba(88,166,255,0.2)] text-white': accountMenuOpen }"
             :aria-expanded="accountMenuOpen"
             :aria-label="(accountMenuOpen ? 'Close account menu' : 'Open account menu') + (auth.user?.username ? ` (${auth.user.username})` : '')"
             aria-haspopup="menu"
@@ -1354,14 +1513,14 @@ async function submitRowUpdate() {
           <div
             id="account-menu-dropdown"
             v-show="accountMenuOpen"
-            class="absolute right-0 top-[calc(100%+6px)] min-w-[220px] p-2.5 rounded-md border border-[#30363d] bg-[#0b0e14] shadow-[0_8px_24px_rgba(0,0,0,0.45)] flex flex-col gap-1.5 z-30"
+            class="absolute right-0 top-[calc(100%+6px)] min-w-[220px] p-2.5 rounded-md border border-[#e5e7eb] bg-[#f3f4f6] shadow-[0_8px_24px_rgba(0,0,0,0.45)] flex flex-col gap-1.5 z-30"
             role="menu"
             @click.stop
           >
-            <div class="text-[0.8rem] text-[#e6edf3] break-all">{{ auth.user?.username }}</div>
-            <div v-if="auth.user?.role" class="text-[0.72rem] text-[#8b949e] mb-1">{{ auth.user.role }}</div>
-            <button type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#e6edf3] text-[0.8rem] cursor-pointer rounded hover:text-[#58a6ff]" role="menuitem" @click="openCreateDbModal">Create new database</button>
-            <button v-if="showLogout" type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#e6edf3] text-[0.8rem] cursor-pointer rounded hover:text-[#58a6ff]" role="menuitem" @click="logout">Log out</button>
+            <div class="text-[0.8rem] text-[#111827] break-all">{{ auth.user?.username }}</div>
+            <div v-if="auth.user?.role" class="text-[0.72rem] text-[#6b7280] mb-1">{{ auth.user.role }}</div>
+            <button type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#111827] text-[0.8rem] cursor-pointer rounded hover:text-[#2563eb]" role="menuitem" @click="openCreateDbModal">Create new database</button>
+            <button v-if="showLogout" type="button" class="text-left py-1.5 px-0 border-none bg-transparent text-[#111827] text-[0.8rem] cursor-pointer rounded hover:text-[#2563eb]" role="menuitem" @click="logout">Log out</button>
           </div>
         </div>
       </div>
@@ -1377,7 +1536,10 @@ async function submitRowUpdate() {
           {{ selectedTable.schema }}.{{ selectedTable.name }}
         </p>
         <div class="modal-fields scroll">
-          <label v-for="col in (dataPreview?.columns ?? []).filter((c) => c !== 'id')" :key="col" class="modal-field">
+          <label 
+            v-for="col in (dataPreview?.columns ?? []).filter((c) => c !== 'id' && (!editSingleField || c === editSingleField))" 
+            :key="col" class="modal-field"
+          >
             {{ col }}
             <input
               v-model="rowEditFields[col]"
@@ -1436,41 +1598,41 @@ async function submitRowUpdate() {
     </div>
 
     <div class="flex flex-1 overflow-hidden">
-    <aside class="w-[240px] bg-[#0b0e14] border-r border-[#30363d] flex flex-col transition-all duration-300 ease-in-out shrink-0" aria-label="Main navigation">
+    <aside class="w-[240px] bg-[#f3f4f6] border-r border-[#e5e7eb] flex flex-col transition-all duration-300 ease-in-out shrink-0" aria-label="Main navigation">
       <div class="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar-v2">
         <ul class="space-y-1">
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'chatsql'">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'chatsql'">
               <ChatAlt2Icon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>Chat SQL</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'tables') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'tables'; clearSelectedTable()">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'tables') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'tables'; clearSelectedTable()">
               <TableIcon class="w-5 h-5 shrink-0" :class="(nav === 'tables') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>Tables</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'history') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'history'">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'history') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'history'">
               <ClockIcon class="w-5 h-5 shrink-0" :class="(nav === 'history') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>History</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'saved'">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'saved'">
               <CodeIcon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>Queries</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'users') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'users'">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'users') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'users'">
               <UsersIcon class="w-5 h-5 shrink-0" :class="(nav === 'users') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>Users</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-[#21262d] text-emerald-400 border border-[#30363d] shadow-sm' : 'text-gray-400 hover:bg-[#161b22] hover:text-gray-200 border border-transparent'" @click="nav = 'operations'">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'operations'">
               <CogIcon class="w-5 h-5 shrink-0" :class="(nav === 'operations') ? 'text-emerald-400' : 'text-gray-500'" />
               <span>Operations</span>
             </button>
@@ -1478,18 +1640,18 @@ async function submitRowUpdate() {
         </ul>
 
         <div v-if="nav === 'operations'" class="mt-4 px-2 pl-9" role="group" aria-label="Operations">
-          <ul class="space-y-1 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-[#30363d]">
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'export' }" @click="operationsTab = 'export'">Export</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'import' }" @click="operationsTab = 'import'">Import</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'delete' }" @click="operationsTab = 'delete'">Delete</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'truncate' }" @click="operationsTab = 'truncate'">Truncate</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#161b22] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'rename' }" @click="operationsTab = 'rename'">Rename</button></li>
+          <ul class="space-y-1 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-[#e5e7eb]">
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'export' }" @click="operationsTab = 'export'">Export</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'import' }" @click="operationsTab = 'import'">Import</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'delete' }" @click="operationsTab = 'delete'">Delete</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'truncate' }" @click="operationsTab = 'truncate'">Truncate</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'rename' }" @click="operationsTab = 'rename'">Rename</button></li>
           </ul>
         </div>
       </div>
     </aside>
 
-    <main class="flex-1 overflow-hidden transition-all duration-300 ease-in-out relative flex flex-col bg-[#0d1117]">
+    <main class="flex-1 overflow-hidden transition-all duration-300 ease-in-out relative flex flex-col bg-[#f9fafb]">
       <div v-if="nav === 'tables'" class="panel browse">
         <div class="pane-wide">
           <template v-if="!selectedTable">
@@ -1523,10 +1685,20 @@ async function submitRowUpdate() {
           </template>
 
           <template v-else>
-            <div class="tables-detail-topbar">
-              <button type="button" class="ghost" @click="clearSelectedTable">All tables</button>
-              <div class="tables-detail-title">
-                <h3>{{ selectedTable.schema }}.{{ selectedTable.name }}</h3>
+            <div class="w-full bg-white border-b border-gray-200">
+              <div class="flex flex-wrap justify-between gap-[14px] px-4 py-3 lg:pl-6">
+                <div class="flex items-center gap-2 h-[34px]">
+                  <div class="h-5 w-px bg-gray-300 hidden lg:block mr-2" />
+                  <a href="#" @click.prevent="clearSelectedTable" class="cursor-pointer hover:no-underline">
+                    <span class="text-lg font-medium leading-[34px] text-gray-500 hover:text-gray-800">Tables</span>
+                  </a>
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                  <span class="text-lg font-medium leading-[34px] text-gray-900">{{ selectedTable.name }}</span>
+                </div>
               </div>
             </div>
             <div class="tabs">
@@ -1538,11 +1710,43 @@ async function submitRowUpdate() {
                 Indexes
               </button>
             </div>
+            
+            <!-- Static Search Header -->
+            <div v-if="tableTab === 'data' && showSearchHeader" class="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <input v-model="searchHeaderQuery" type="text" placeholder="Search data..." class="px-3 py-1.5 border border-gray-300 rounded text-sm w-64 focus:outline-none focus:ring-1 focus:ring-indigo-500" @keydown.enter="executeSearch" />
+                <button type="button" @click="executeSearch" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 flex items-center">
+                  <span>Execute</span>
+                </button>
+              </div>
+              <button type="button" @click="showSearchHeader = false; searchHeaderQuery = ''" class="text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
             <div v-if="tableTab === 'structure'" class="scroll">
               <CommonTable :fields="[{key: 'column', label: 'Column'}, {key: 'data_type', label: 'Type'}, {key: 'is_nullable', label: 'Nullable'}]" :items="columns" bordered striped hover />
             </div>
-            <div v-else-if="tableTab === 'data'" class="scroll">
-              <CommonTable v-if="dataPreview" :fields="dataPreviewFields" :items="dataPreviewItems" bordered striped hover @rowClicked="(item) => openRowEditor(item._originalIndex)" />
+            <div v-else-if="tableTab === 'data'" class="scroll relative">
+              <CommonTable v-if="dataPreview" :fields="dataPreviewFields" :items="dataPreviewItems" bordered striped hover @rightClick="handleTableRightClick" />
+              
+              <!-- Custom Context Menu -->
+              <div 
+                v-if="contextMenuVisible" 
+                class="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg w-48 py-1 text-sm text-gray-700 font-medium"
+                :style="{ top: `${contextMenuY}px`, left: `${contextMenuX}px` }"
+                @click.away="closeContextMenu"
+              >
+                <div @click="actionUpdateField" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Update field</div>
+                <div @click="actionUpdateRecord" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Update record</div>
+                <div @click="actionSort" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Sort</div>
+                <div @click="actionShiftToStart" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Shift to start</div>
+                <div @click="actionShiftToEnd" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Shift to end</div>
+                <div @click="actionSearch" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Search</div>
+                <div @click="actionRelated" class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-400">Related (dummy)</div>
+              </div>
             </div>
             <div v-else class="scroll">
               <CommonTable :fields="[{key: 'name', label: 'Index'}, {key: 'definition', label: 'Definition'}]" :items="indexes" bordered striped hover>
@@ -1976,10 +2180,10 @@ async function submitRowUpdate() {
 <style scoped>
 /* Styles removed/replaced by Tailwind utility classes */
 .dropdown-item.linkish {
-  color: #58a6ff;
+  color: #2563eb;
   padding-top: 0.5rem;
   margin-top: 0.25rem;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
 }
 .modal-backdrop {
   position: fixed;
@@ -1996,9 +2200,9 @@ async function submitRowUpdate() {
   max-width: 400px;
   padding: 1.25rem;
   border-radius: 10px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .modal-title {
   margin: 0 0 0.5rem;
@@ -2010,14 +2214,14 @@ async function submitRowUpdate() {
   gap: 0.35rem;
   margin-top: 0.75rem;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .modal-field input {
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .modal-actions {
   display: flex;
@@ -2052,14 +2256,14 @@ async function submitRowUpdate() {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #8b949e;
+  color: #6b7280;
   font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
 }
 .modal-close:hover {
-  color: #e6edf3;
-  background: #21262d;
+  color: #111827;
+  background: #f3f4f6;
 }
 .modal-fields {
   max-height: min(60vh, 420px);
@@ -2069,7 +2273,7 @@ async function submitRowUpdate() {
 }
 .modal-preview {
   margin-top: 0.75rem;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   padding-top: 0.75rem;
 }
 .modal-preview-title {
@@ -2079,9 +2283,9 @@ async function submitRowUpdate() {
   margin: 0;
   padding: 0.5rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 160px;
@@ -2091,23 +2295,23 @@ async function submitRowUpdate() {
   cursor: pointer;
 }
 .data-row:hover {
-  background: #21262d;
+  background: #f3f4f6;
 }
 .layout {
   display: flex;
   flex: 1;
   min-height: 0;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 .left-rail {
   width: 240px;
-  border-right: 1px solid #30363d;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   padding: 0.75rem;
   gap: 0.5rem;
-  background: #010409;
+  background: #f9fafb;
   min-height: 0;
 }
 .nav-btns {
@@ -2124,16 +2328,16 @@ async function submitRowUpdate() {
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: #e6edf3;
+  color: #111827;
   cursor: pointer;
   font-size: 0.85rem;
 }
 .nav-btns button.on {
-  background: #1f6feb33;
-  border-color: #1f6feb;
+  background: #dbeafe;
+  border-color: #3b82f6;
 }
 .nav-btns button:hover:not(.on) {
-  background: #161b22;
+  background: #ffffff;
 }
 .nav-sub {
   display: flex;
@@ -2141,7 +2345,7 @@ async function submitRowUpdate() {
   gap: 0.28rem;
   padding-left: 0.65rem;
   margin-top: 0.15rem;
-  border-left: 2px solid #21262d;
+  border-left: 2px solid #f3f4f6;
 }
 .nav-sub button {
   padding: 0.35rem 0.45rem;
@@ -2154,13 +2358,13 @@ async function submitRowUpdate() {
   text-align: left;
 }
 .nav-sub button.on {
-  background: #1f6feb33;
-  border-color: #1f6feb;
-  color: #e6edf3;
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #111827;
 }
 .nav-sub button:hover:not(.on) {
-  background: #161b22;
-  color: #e6edf3;
+  background: #ffffff;
+  color: #111827;
 }
 .history-workspace {
   flex: 1;
@@ -2173,22 +2377,22 @@ async function submitRowUpdate() {
   width: min(100%, 320px);
   min-width: 220px;
   max-width: 36%;
-  border-right: 1px solid #30363d;
-  background: #0b0e14;
+  border-right: 1px solid #e5e7eb;
+  background: #f3f4f6;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 .history-list-head {
   padding: 0.75rem 0.9rem 0.55rem;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid #f3f4f6;
   flex-shrink: 0;
 }
 .history-list-title {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #e6edf3;
+  color: #111827;
   letter-spacing: -0.02em;
 }
 .history-search {
@@ -2196,9 +2400,9 @@ async function submitRowUpdate() {
   font-size: 0.8rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .history-groups {
   flex: 1;
@@ -2238,7 +2442,7 @@ async function submitRowUpdate() {
   padding: 0.45rem 0.5rem 0.5rem 0.55rem;
   margin-bottom: 0.15rem;
   cursor: pointer;
-  color: #e6edf3;
+  color: #111827;
   position: relative;
   transition: background 0.12s ease;
 }
@@ -2247,13 +2451,13 @@ async function submitRowUpdate() {
   font-weight: 600;
 }
 .history-item.is-active {
-  background: #161b22;
-  border-color: #30363d;
-  box-shadow: inset 3px 0 0 #1f6feb;
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 .history-item:hover:not(.is-active) {
-  background: #161b22aa;
-  border-color: #21262d;
+  background: #ffffffaa;
+  border-color: #f3f4f6;
 }
 .history-item-title {
   display: flex;
@@ -2269,7 +2473,7 @@ async function submitRowUpdate() {
 .history-item-snippet {
   margin: 0.25rem 0 0;
   font-size: 0.72rem;
-  color: #8b949e;
+  color: #6b7280;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2284,7 +2488,7 @@ async function submitRowUpdate() {
   text-transform: lowercase;
   padding: 0.12rem 0.4rem;
   border-radius: 4px;
-  background: #23863622;
+  background: #05966922;
   color: #3fb950;
   border: 1px solid #2ea04355;
   letter-spacing: 0.02em;
@@ -2294,7 +2498,7 @@ async function submitRowUpdate() {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
+  background: #f9fafb;
   padding: 0.6rem 1rem 0;
   min-height: 0;
   overflow: auto;
@@ -2307,14 +2511,14 @@ async function submitRowUpdate() {
   gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid #e5e7eb;
 }
 .history-detail-h1 {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
   font-weight: 600;
   line-height: 1.2;
-  color: #e6edf3;
+  color: #111827;
 }
 .history-detail-meta {
   margin: 0;
@@ -2322,7 +2526,7 @@ async function submitRowUpdate() {
 }
 .history-detail-sep {
   margin: 0 0.35rem;
-  color: #484f58;
+  color: #d1d5db;
 }
 .history-detail-actions {
   display: flex;
@@ -2336,16 +2540,16 @@ async function submitRowUpdate() {
 }
 .history-trash {
   padding: 0.3rem 0.45rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .history-trash:hover {
-  color: #f85149;
-  border-color: #f8514955;
+  color: #ef4444;
+  border-color: #ef444455;
 }
 .history-prompt {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
-  background: #0b0e14;
+  background: #f3f4f6;
   padding: 0.5rem 0.75rem 0.6rem;
   margin-bottom: 0.85rem;
 }
@@ -2365,10 +2569,10 @@ async function submitRowUpdate() {
   color: #c9d1d9;
 }
 .history-sql-block {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
-  background: #161b22;
+  background: #ffffff;
   margin-bottom: 0.75rem;
 }
 .history-sql-head {
@@ -2377,9 +2581,9 @@ async function submitRowUpdate() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #8b949e;
-  border-bottom: 1px solid #21262d;
-  background: #0b0e14;
+  color: #6b7280;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f3f4f6;
 }
 .history-sql-body {
   margin: 0;
@@ -2391,12 +2595,12 @@ async function submitRowUpdate() {
   word-break: break-word;
   max-height: min(50vh, 400px);
   overflow: auto;
-  background: #0d1117;
+  background: #f9fafb;
 }
 .history-exec-hint {
   display: inline-block;
   font-size: 0.78rem;
-  color: #58a6ff;
+  color: #2563eb;
   text-decoration: none;
   margin-bottom: 0.75rem;
   cursor: pointer;
@@ -2412,12 +2616,12 @@ async function submitRowUpdate() {
   gap: 0.5rem;
   margin-top: auto;
   padding: 0.5rem 0;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid #f3f4f6;
   font-size: 0.75rem;
-  color: #8b949e;
+  color: #6b7280;
   position: sticky;
   bottom: 0;
-  background: linear-gradient(180deg, transparent, #0d1117 20%);
+  background: linear-gradient(180deg, transparent, #f9fafb 20%);
   padding-top: 0.75rem;
   margin-bottom: 0.5rem;
 }
@@ -2445,7 +2649,7 @@ async function submitRowUpdate() {
     max-width: none;
     min-height: 200px;
     border-right: none;
-    border-bottom: 1px solid #30363d;
+    border-bottom: 1px solid #e5e7eb;
   }
 }
 .tables-topbar {
@@ -2465,9 +2669,9 @@ async function submitRowUpdate() {
   align-items: start;
 }
 .tables-group {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   border-radius: 10px;
-  background: #0b0e14;
+  background: #f3f4f6;
   padding: 0.75rem;
   min-width: 0;
 }
@@ -2477,7 +2681,7 @@ async function submitRowUpdate() {
   letter-spacing: -0.02em;
   line-height: 1;
   margin-bottom: 0.5rem;
-  color: #e6edf3;
+  color: #111827;
 }
 .tables-items {
   display: grid;
@@ -2486,17 +2690,17 @@ async function submitRowUpdate() {
 }
 .table-chip {
   text-align: left;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   border-radius: 8px;
   padding: 0.4rem 0.5rem;
   cursor: pointer;
   min-width: 0;
 }
 .table-chip:hover {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff22;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb22;
 }
 .table-chip-name {
   display: block;
@@ -2509,7 +2713,7 @@ async function submitRowUpdate() {
 .table-chip-kind {
   display: block;
   font-size: 0.7rem;
-  color: #8b949e;
+  color: #6b7280;
   margin-top: 0.15rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -2526,7 +2730,7 @@ async function submitRowUpdate() {
 .link {
   background: none;
   border: none;
-  color: #58a6ff;
+  color: #2563eb;
   cursor: pointer;
   padding: 0;
   text-align: left;
@@ -2563,8 +2767,8 @@ async function submitRowUpdate() {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #0b0e14;
-  border-right: 1px solid #30363d;
+  background: #f3f4f6;
+  border-right: 1px solid #e5e7eb;
 }
 .sql-workbench-actions {
   display: flex;
@@ -2576,7 +2780,7 @@ async function submitRowUpdate() {
   flex-shrink: 0;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid #f3f4f6;
 }
 .run-query-btn {
   display: inline-flex;
@@ -2616,8 +2820,8 @@ async function submitRowUpdate() {
   min-height: 0;
   min-width: 0;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #161b22;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
   overflow: hidden;
 }
 .sql-gutter {
@@ -2630,8 +2834,8 @@ async function submitRowUpdate() {
   font-size: 0.85rem;
   line-height: 1.5;
   user-select: none;
-  background: #0b0e14;
-  border-right: 1px solid #21262d;
+  background: #f3f4f6;
+  border-right: 1px solid #f3f4f6;
 }
 .sql-gutter-line {
   min-height: 1.5em;
@@ -2648,15 +2852,15 @@ async function submitRowUpdate() {
   font-size: 0.85rem;
   line-height: 1.5;
   padding: 0.5rem 0.55rem;
-  background: #161b22;
-  color: #e6edf3;
+  background: #ffffff;
+  color: #111827;
   white-space: pre;
   overflow: auto;
   tab-size: 2;
 }
 .sql-input:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px #58a6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
 }
 .sql-results-stack {
   flex: 1 1 45%;
@@ -2664,8 +2868,8 @@ async function submitRowUpdate() {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-top: 1px solid #30363d;
-  background: #0b0e14;
+  border-top: 1px solid #e5e7eb;
+  background: #f3f4f6;
 }
 .sql-results-head {
   display: flex;
@@ -2674,8 +2878,8 @@ async function submitRowUpdate() {
   justify-content: space-between;
   gap: 0.4rem 0.75rem;
   padding: 0.45rem 0.9rem;
-  border-bottom: 1px solid #21262d;
-  background: #0b0e14;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f3f4f6;
 }
 .sql-results-title {
   display: flex;
@@ -2689,7 +2893,7 @@ async function submitRowUpdate() {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8b949e;
+  color: #6b7280;
 }
 .sql-results-meta {
   font-size: 0.78rem;
@@ -2705,9 +2909,9 @@ async function submitRowUpdate() {
   padding: 0.2rem 0.4rem;
   font-size: 0.75rem;
   border-radius: 4px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .sql-results-error {
   margin: 0.4rem 0.9rem 0;
@@ -2748,8 +2952,8 @@ async function submitRowUpdate() {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #f9fafb;
+  color: #111827;
 }
 @media (max-width: 1024px) {
   .chatsql-split {
@@ -2761,7 +2965,7 @@ async function submitRowUpdate() {
     max-width: none;
     min-height: 240px;
     border-left: none;
-    border-top: 1px solid #30363d;
+    border-top: 1px solid #e5e7eb;
   }
   .chatsql-main {
     border-right: none;
@@ -2769,8 +2973,8 @@ async function submitRowUpdate() {
 }
 .ai-panel-header {
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #30363d;
-  background: #010409;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
 }
 .ai-panel-title {
   font-size: 0.85rem;
@@ -2809,14 +3013,14 @@ async function submitRowUpdate() {
   line-height: 1.45;
 }
 .ai-bubble-user {
-  background: #21262d;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   padding: 0.5rem 0.65rem;
-  color: #e6edf3;
+  color: #111827;
 }
 .ai-bubble-assistant {
-  background: #0b0e14;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   padding: 0.5rem 0.6rem 0.55rem;
   width: 100%;
 }
@@ -2830,8 +3034,8 @@ async function submitRowUpdate() {
   margin: 0 0 0.5rem;
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   color: #79c0ff;
   font-size: 0.75rem;
   line-height: 1.4;
@@ -2853,7 +3057,7 @@ async function submitRowUpdate() {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  background: #1f6feb;
+  background: #3b82f6;
   color: #fff;
 }
 .apply-sql-btn:hover {
@@ -2864,7 +3068,7 @@ async function submitRowUpdate() {
   background: none;
   padding: 0.25rem 0;
   font-size: 0.78rem;
-  color: #58a6ff;
+  color: #2563eb;
   cursor: pointer;
   text-decoration: none;
 }
@@ -2873,8 +3077,8 @@ async function submitRowUpdate() {
 }
 .ai-composer {
   flex-shrink: 0;
-  border-top: 1px solid #30363d;
-  background: #010409;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
   padding: 0.5rem 0.6rem 0.6rem;
   display: flex;
   flex-direction: column;
@@ -2888,16 +3092,16 @@ async function submitRowUpdate() {
   font-size: 0.8rem;
   line-height: 1.4;
   font-family: inherit;
-  background: #161b22;
-  color: #e6edf3;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
 }
 .ai-composer-input:focus {
   outline: none;
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 1px #58a6ff40;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb40;
 }
 .ai-composer-row {
   display: flex;
@@ -2928,21 +3132,21 @@ select,
 input.search {
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
 }
 .ghost {
-  border: 1px solid #30363d;
-  background: #21262d;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #111827;
   border-radius: 6px;
   padding: 0.35rem 0.75rem;
   cursor: pointer;
 }
 .primary {
   border: none;
-  background: #238636;
+  background: #059669;
   color: #fff;
   border-radius: 6px;
   padding: 0.45rem 1rem;
@@ -2958,7 +3162,7 @@ a.primary {
   background: #da3633;
 }
 .primary.danger:hover {
-  background: #f85149;
+  background: #ef4444;
 }
 .panel {
   flex: 1;
@@ -2986,7 +3190,7 @@ h3 {
 }
 .sep {
   border: none;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   margin: 1rem 0;
 }
 .pill-list {
@@ -3001,8 +3205,8 @@ h3 {
   font-size: 0.75rem;
   padding: 0.2rem 0.45rem;
   border-radius: 999px;
-  background: #21262d;
-  border: 1px solid #30363d;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
 }
 .list {
   list-style: none;
@@ -3016,10 +3220,10 @@ h3 {
   font-size: 0.85rem;
 }
 .left-rail .list li:hover {
-  background: #21262d;
+  background: #f3f4f6;
 }
 .kind {
-  color: #8b949e;
+  color: #6b7280;
   margin-right: 0.25rem;
 }
 .scroll {
@@ -3041,12 +3245,12 @@ h3 {
 }
 .grid th,
 .grid td {
-  border: 1px solid #30363d;
+  border: 1px solid #e5e7eb;
   padding: 0.25rem 0.35rem;
   text-align: left;
 }
 .muted {
-  color: #8b949e;
+  color: #6b7280;
 }
 .small {
   font-size: 0.8rem;
@@ -3059,13 +3263,13 @@ h3 {
 .tabs button {
   padding: 0.3rem 0.6rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #161b22;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   cursor: pointer;
 }
 .tabs button.on {
-  border-color: #58a6ff;
+  border-color: #2563eb;
 }
 .qtabs {
   padding: 0.5rem 1rem 0;
@@ -3076,12 +3280,12 @@ h3 {
   padding-bottom: 0.5rem;
 }
 .error {
-  color: #f85149;
+  color: #ef4444;
   margin: 0.25rem 0;
 }
 .side-list {
   height: 200px;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
   padding: 0.5rem;
 }
 .side-list.full {
@@ -3090,7 +3294,7 @@ h3 {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #e5e7eb;
 }
 .list-fill {
   flex: 1;
@@ -3308,7 +3512,7 @@ h3 {
 .snippet {
   margin: 0.15rem 0 0;
   font-size: 0.7rem;
-  color: #8b949e;
+  color: #6b7280;
   white-space: pre-wrap;
 }
 .user-form {
@@ -3323,19 +3527,19 @@ h3 {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.8rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 .user-form input,
 .user-form select {
   padding: 0.35rem;
   border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 .hint {
   padding: 1rem;
-  color: #8b949e;
+  color: #6b7280;
 }
 
 /* Operations tabbed panel */

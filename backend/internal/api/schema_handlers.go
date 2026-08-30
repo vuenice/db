@@ -4,11 +4,70 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
+	"chatdb/internal/auth"
 	"chatdb/internal/engine"
 )
+
+func (s *Server) handleGetTablePreferences(w http.ResponseWriter, r *http.Request) {
+	uid, ok := auth.UserID(r)
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+	connID := chi.URLParam(r, "id")
+	cid, err := strconv.Atoi(connID)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	schema := r.URL.Query().Get("schema")
+	table := r.URL.Query().Get("table")
+	
+	pref, err := s.Store.GetTablePreferences(r.Context(), int(uid), cid, schema, table)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"preferences": pref})
+}
+
+type saveTablePreferencesReq struct {
+	Schema      string `json:"schema"`
+	Table       string `json:"table"`
+	Preferences string `json:"preferences"`
+}
+
+func (s *Server) handleSaveTablePreferences(w http.ResponseWriter, r *http.Request) {
+	uid, ok := auth.UserID(r)
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+	connID := chi.URLParam(r, "id")
+	cid, err := strconv.Atoi(connID)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	var req saveTablePreferencesReq
+	if err := decodeJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	
+	err = s.Store.SaveTablePreferences(r.Context(), int(uid), cid, req.Schema, req.Table, req.Preferences)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
 
 func (s *Server) handleListDatabases(w http.ResponseWriter, r *http.Request) {
 	eng, _, err := s.resolveEngine(r, false)
