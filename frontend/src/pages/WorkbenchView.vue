@@ -148,7 +148,7 @@ const dataPreviewItems = computed(() => ({
 
 const indexesFields = [
   { key: 'name', label: 'Index' },
-  { key: 'definition', label: 'Definition' },
+  { key: 'type', label: 'Type' },
 ]
 const indexesItems = computed(() => ({ data: indexes.value }))
 
@@ -1449,7 +1449,11 @@ async function submitRowUpdate() {
               />
             </div>
             <div v-else class="scroll">
-              <VueNiceTable :fields="indexesFields" :items="(indexesItems as any)" row-bordered />
+              <VueNiceTable :fields="indexesFields" :items="(indexesItems as any)" row-bordered>
+                <template #cell_type="{ item }">
+                  <span class="mono">{{ (item.definition || '').toUpperCase().includes('UNIQUE') ? 'UNIQUE' : item.definition ? 'INDEX' : '—' }}</span>
+                </template>
+              </VueNiceTable>
             </div>
           </template>
         </div>
