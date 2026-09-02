@@ -6,7 +6,7 @@ import { http } from '../../api/http'
 import { useAuthStore } from '../../stores/auth'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/vue'
 import CommonTable from '@/shared/common/CommonTable.vue'
-// @ts-ignore
+import SearchWorkspace from './search/SearchWorkspace.vue'
 import {
   DatabaseIcon,
   TableIcon,
@@ -15,50 +15,37 @@ import {
   UsersIcon,
   CogIcon,
   ChevronDownIcon,
-  ChatAlt2Icon
+  ChatAlt2Icon,
+  SearchIcon
 } from '@heroicons/vue/outline'
 
 const router = useRouter()
 const auth = useAuthStore()
+import { useDatabaseStore } from '../../stores/database'
+import { storeToRefs } from 'pinia'
+const dbStore = useDatabaseStore()
+const {
+  connections,
+  selectedConnId,
+  databases,
+  selectedPhysicalDatabase,
+  catalogRoles,
+  tables,
+  selectedSchema,
+  currentConnection
+} = storeToRefs(dbStore)
 
-type Nav = 'tables' | 'queries' | 'users' | 'history' | 'operations'
+type Nav = 'tables' | 'queries' | 'users' | 'history' | 'operations' | 'search'
 type QueriesTab = 'chatsql' | 'saved' | 'running'
 type TableTab = 'structure' | 'data' | 'indexes'
 type OperationsTab = 'export' | 'import' | 'delete' | 'truncate' | 'rename'
-
-interface Connection {
-  id: number
-  name: string
-  driver: string
-  host: string
-  port: number
-  database: string
-  ssl_mode: string
-  read_username: string
-  write_username: string
-  allowed_schemas: string[]
-}
-
-interface TableMeta {
-  schema: string
-  name: string
-  kind: string
-}
 
 const nav = ref<Nav>('tables')
 const operationsTab = ref<OperationsTab>('export')
 /** Display name for the active SQL "file" in the workbench header. */
 const queryFileName = ref('untitled.sql')
-const connections = ref<Connection[]>([])
-const selectedConnId = ref<number | null>(null)
-const databases = ref<string[]>([])
-/** Physical database override; empty = omit query param (server uses stored default). */
-const selectedPhysicalDatabase = ref('')
-const catalogRoles = ref<string[]>([])
 const selectedRole = ref('')
-const tables = ref<TableMeta[]>([])
 const tableSearch = ref('')
-const selectedSchema = ref('public')
 const selectedTable = ref<{ schema: string; name: string } | null>(null)
 const tableTab = ref<TableTab>('structure')
 const columns = ref<{ column: string; data_type: string; is_nullable: string }[]>([])
@@ -240,7 +227,7 @@ function alertSelectConnection() {
   window.alert('Select a connection from the header first.')
 }
 
-const currentConnection = computed(() => connections.value.find((x) => x.id === selectedConnId.value) ?? null)
+
 
 const sqlLineNumbers = computed(() => {
   const n = (sqlText.value || '').split('\n').length
@@ -1406,13 +1393,14 @@ async function submitRowUpdate() {
     rowEditBusy.value = false
   }
 }
+
 </script>
 
 <template>
   <div class="relative h-screen flex flex-col overflow-hidden text-[#111827] bg-[#f9fafb]">
     <header class="flex justify-between items-center w-full bg-[#f3f4f6] py-2 px-4 h-[50px] border-b border-[#e5e7eb] shrink-0 z-10">
       <div class="h-[24px] flex items-center">
-        <div class="text-white font-bold text-xl tracking-wider flex items-center gap-2">
+        <div class="text-gray-900 font-bold text-xl tracking-wider flex items-center gap-2">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1425,18 +1413,18 @@ async function submitRowUpdate() {
         <div v-if="selectedConnId" class="flex items-center gap-3">
           <!-- Database -->
           <Popover class="relative">
-            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white py-[3px] px-2.5 text-left text-gray-700 border border-gray-300 focus:outline-none hover:bg-gray-50 transition-colors">
               <div class="flex items-center gap-2">
-                <DatabaseIcon class="w-4 h-4 text-emerald-400" />
+                <DatabaseIcon class="w-4 h-4 text-emerald-600" />
                 <span class="block truncate text-sm font-medium w-max max-w-[150px]">{{ selectedPhysicalDatabase || 'Database' }}</span>
-                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+                <ChevronDownIcon class="w-4 h-4 text-gray-400" aria-hidden="true" />
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
               <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
                   <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Database</div>
-                  <button v-for="d in databases" :key="d" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedPhysicalDatabase = d">
+                  <button v-for="d in databases" :key="d" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-gray-100 flex items-center text-sm gap-2 text-gray-700" @click="selectedPhysicalDatabase = d">
                     <DatabaseIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">{{ d }}</span>
                   </button>
@@ -1447,22 +1435,22 @@ async function submitRowUpdate() {
 
           <!-- DB roles -->
           <Popover class="relative">
-            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white py-[3px] px-2.5 text-left text-gray-700 border border-gray-300 focus:outline-none hover:bg-gray-50 transition-colors">
               <div class="flex items-center gap-2">
-                <UsersIcon class="w-4 h-4 text-emerald-400" />
+                <UsersIcon class="w-4 h-4 text-emerald-600" />
                 <span class="block truncate text-sm font-medium max-w-[120px]">{{ selectedRole || '(session default)' }}</span>
-                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+                <ChevronDownIcon class="w-4 h-4 text-gray-400" aria-hidden="true" />
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
               <PopoverPanel class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="max-h-[300px] overflow-y-auto py-1 custom-scrollbar-v2">
                   <div class="px-3 py-1.5 text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Role</div>
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = ''">
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-gray-100 flex items-center text-sm gap-2 text-gray-700" @click="selectedRole = ''">
                     <UsersIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">(session default)</span>
                   </button>
-                  <button v-for="r in catalogRoles" :key="r" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm gap-2 text-gray-200" @click="selectedRole = r">
+                  <button v-for="r in catalogRoles" :key="r" class="w-full text-left py-2 px-4 cursor-pointer hover:bg-gray-100 flex items-center text-sm gap-2 text-gray-700" @click="selectedRole = r">
                     <UsersIcon class="w-4 h-4 text-gray-400" />
                     <span class="block truncate">{{ r }}</span>
                   </button>
@@ -1473,18 +1461,18 @@ async function submitRowUpdate() {
 
           <!-- DB pool -->
           <Popover v-if="auth.isEngineer" class="relative">
-            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white/10 py-[3px] px-2.5 text-left text-white border border-white/20 focus:outline-none hover:bg-white/20 transition-colors">
+            <PopoverButton class="flex items-center gap-2 cursor-pointer rounded-md bg-white py-[3px] px-2.5 text-left text-gray-700 border border-gray-300 focus:outline-none hover:bg-gray-50 transition-colors">
               <div class="flex items-center gap-2">
-                <CogIcon class="w-4 h-4 text-emerald-400" />
+                <CogIcon class="w-4 h-4 text-emerald-600" />
                 <span class="block truncate text-sm font-medium capitalize">{{ poolMode }}</span>
-                <ChevronDownIcon class="w-4 h-4 text-gray-300" aria-hidden="true" />
+                <ChevronDownIcon class="w-4 h-4 text-gray-400" aria-hidden="true" />
               </div>
             </PopoverButton>
             <transition enter-active-class="transition duration-200 ease-out" enter-from-class="translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-1 opacity-0">
               <PopoverPanel class="absolute right-0 z-50 mt-2 w-32 origin-top-right rounded-md bg-[#ffffff] border border-[#e5e7eb] shadow-lg focus:outline-none">
                 <div class="py-1">
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm text-gray-200" @click="poolMode = 'read'">Read</button>
-                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-[#f3f4f6] flex items-center text-sm text-gray-200" @click="poolMode = 'write'">Write</button>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-gray-100 flex items-center text-sm text-gray-700" @click="poolMode = 'read'">Read</button>
+                  <button class="w-full text-left py-2 px-4 cursor-pointer hover:bg-gray-100 flex items-center text-sm text-gray-700" @click="poolMode = 'write'">Write</button>
                 </div>
               </PopoverPanel>
             </transition>
@@ -1602,38 +1590,44 @@ async function submitRowUpdate() {
       <div class="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar-v2">
         <ul class="space-y-1">
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'chatsql'">
-              <ChatAlt2Icon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'queries'; queriesTab = 'chatsql'">
+              <ChatAlt2Icon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab === 'chatsql') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Chat SQL</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'tables') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'tables'; clearSelectedTable()">
-              <TableIcon class="w-5 h-5 shrink-0" :class="(nav === 'tables') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'tables') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'tables'; clearSelectedTable()">
+              <TableIcon class="w-5 h-5 shrink-0" :class="(nav === 'tables') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Tables</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'history') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'history'">
-              <ClockIcon class="w-5 h-5 shrink-0" :class="(nav === 'history') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'search') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'search'">
+              <SearchIcon class="w-5 h-5 shrink-0" :class="(nav === 'search') ? 'text-emerald-600' : 'text-gray-500'" />
+              <span>Search</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'history') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'history'">
+              <ClockIcon class="w-5 h-5 shrink-0" :class="(nav === 'history') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>History</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'queries'; queriesTab = 'saved'">
-              <CodeIcon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'queries'; queriesTab = 'saved'">
+              <CodeIcon class="w-5 h-5 shrink-0" :class="(nav === 'queries' && queriesTab !== 'chatsql') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Queries</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'users') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'users'">
-              <UsersIcon class="w-5 h-5 shrink-0" :class="(nav === 'users') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'users') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'users'">
+              <UsersIcon class="w-5 h-5 shrink-0" :class="(nav === 'users') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Users</span>
             </button>
           </li>
           <li>
-            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-[#f3f4f6] text-emerald-400 border border-[#e5e7eb] shadow-sm' : 'text-gray-400 hover:bg-[#ffffff] hover:text-gray-200 border border-transparent'" @click="nav = 'operations'">
-              <CogIcon class="w-5 h-5 shrink-0" :class="(nav === 'operations') ? 'text-emerald-400' : 'text-gray-500'" />
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'operations'">
+              <CogIcon class="w-5 h-5 shrink-0" :class="(nav === 'operations') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Operations</span>
             </button>
           </li>
@@ -1641,18 +1635,19 @@ async function submitRowUpdate() {
 
         <div v-if="nav === 'operations'" class="mt-4 px-2 pl-9" role="group" aria-label="Operations">
           <ul class="space-y-1 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-[#e5e7eb]">
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'export' }" @click="operationsTab = 'export'">Export</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'import' }" @click="operationsTab = 'import'">Import</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'delete' }" @click="operationsTab = 'delete'">Delete</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'truncate' }" @click="operationsTab = 'truncate'">Truncate</button></li>
-            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-400 hover:text-gray-200 hover:bg-[#ffffff] transition-colors relative" :class="{ 'text-emerald-400 font-medium': operationsTab === 'rename' }" @click="operationsTab = 'rename'">Rename</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-500 hover:text-gray-900 hover:bg-white transition-colors relative" :class="{ 'text-emerald-600 font-medium': operationsTab === 'export' }" @click="operationsTab = 'export'">Export</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-500 hover:text-gray-900 hover:bg-white transition-colors relative" :class="{ 'text-emerald-600 font-medium': operationsTab === 'import' }" @click="operationsTab = 'import'">Import</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-500 hover:text-gray-900 hover:bg-white transition-colors relative" :class="{ 'text-emerald-600 font-medium': operationsTab === 'delete' }" @click="operationsTab = 'delete'">Delete</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-500 hover:text-gray-900 hover:bg-white transition-colors relative" :class="{ 'text-emerald-600 font-medium': operationsTab === 'truncate' }" @click="operationsTab = 'truncate'">Truncate</button></li>
+            <li><button type="button" class="w-full text-left text-sm py-1.5 px-3 rounded text-gray-500 hover:text-gray-900 hover:bg-white transition-colors relative" :class="{ 'text-emerald-600 font-medium': operationsTab === 'rename' }" @click="operationsTab = 'rename'">Rename</button></li>
           </ul>
         </div>
       </div>
     </aside>
 
     <main class="flex-1 overflow-hidden transition-all duration-300 ease-in-out relative flex flex-col bg-[#f9fafb]">
-      <div v-if="nav === 'tables'" class="panel browse">
+      <SearchWorkspace v-if="nav === 'search'" />
+      <div v-else-if="nav === 'tables'" class="panel browse">
         <div class="pane-wide">
           <template v-if="!selectedTable">
             <div class="tables-topbar">
@@ -1749,9 +1744,9 @@ async function submitRowUpdate() {
               </div>
             </div>
             <div v-else class="scroll">
-              <CommonTable :fields="[{key: 'name', label: 'Index'}, {key: 'definition', label: 'Definition'}]" :items="indexes" bordered striped hover>
-                <template #cell_definition="{ item }">
-                  <span class="mono def">{{ item.definition || '—' }}</span>
+              <CommonTable :fields="[{key: 'name', label: 'Index'}, {key: 'type', label: 'Type'}]" :items="indexes" bordered striped hover>
+                <template #cell_type="{ item }">
+                  <span class="mono">{{ (item.definition || '').toUpperCase().includes('UNIQUE') ? 'UNIQUE' : item.definition ? 'INDEX' : '—' }}</span>
                 </template>
               </CommonTable>
             </div>
@@ -2172,9 +2167,8 @@ async function submitRowUpdate() {
         </div>
       </div>
     </main>
-
-    </div>
   </div>
+</div>
 </template>
 
 <style scoped>

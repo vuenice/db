@@ -2,29 +2,30 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
-  { name: 'login', path: '/login', component: () => import('../views/LoginView.vue') },
-  { name: 'register', path: '/register', component: () => import('../views/RegisterView.vue') },
+  { name: 'login', path: '/login', component: () => import('../pages/auth/Login.vue') },
+  { name: 'register', path: '/register', component: () => import('../pages/auth/Register.vue') },
   {
     name: 'workbench',
     path: '/workbench',
-    component: () => import('../views/workbench/index.vue'),
+    component: () => import('../pages/workbench/Index.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/workbench/export',
-    component: () => import('../views/workbench/export/index.vue'),
+    component: () => import('../pages/workbench/export/Index.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/workbench/import',
-    component: () => import('../views/workbench/import/index.vue'),
+    component: () => import('../pages/workbench/import/Index.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/workbench/query',
-    component: () => import('../views/workbench/query/index.vue'),
+    component: () => import('../pages/workbench/query/Index.vue'),
     meta: { requiresAuth: true },
   },
+
   { path: '/', redirect: '/workbench' },
   { path: '/:pathMatch(.*)*', redirect: '/workbench' },
 ]

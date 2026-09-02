@@ -9,7 +9,8 @@ import {
   CloudUploadIcon,
   CurrencyDollarIcon,
   PuzzleIcon,
-  AdjustmentsIcon
+  AdjustmentsIcon,
+  SearchIcon
 } from '@heroicons/vue/outline'
 
 const props = defineProps<{
@@ -20,6 +21,7 @@ const route = useRoute()
 
 const menuItems = [
   { name: 'Sites', icon: CubeIcon, path: '/workbench', activeKeys: ['workbench'] },
+  { name: 'Search', icon: SearchIcon, path: '/search', activeKeys: ['search'] },
   { name: 'Domains', icon: GlobeIcon, path: '/domains', activeKeys: ['domains'] },
   { name: 'Snapshots', icon: ViewGridIcon, path: '/snapshots', activeKeys: ['snapshots'] },
   { name: 'Manage', icon: AdjustmentsIcon, path: '/manage', activeKeys: ['manage'] },
