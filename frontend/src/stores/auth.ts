@@ -56,6 +56,12 @@ export const useAuthStore = defineStore('auth', () => {
     ssl_mode?: string
     read_username: string
     read_password: string
+    use_ssh?: boolean
+    ssh_host?: string
+    ssh_port?: number
+    ssh_user?: string
+    ssh_password?: string
+    ssh_key?: string
   }) {
     const { data } = await http.post('/api/register', payload)
     token.value = data.token as string

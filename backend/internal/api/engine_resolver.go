@@ -79,12 +79,37 @@ func (s *Server) resolveEngineWithDB(r *http.Request, write bool, databaseOverri
 		return nil, nil, err
 	}
 
+	var sshPass, sshKey string
+	if c.UseSSH {
+		if c.SshPassword != "" {
+			sshPass, err = s.Crypter.Decrypt(c.SshPassword)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if c.SshKey != "" {
+			sshKey, err = s.Crypter.Decrypt(c.SshKey)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
 	build := func() (engine.Engine, error) {
+		var tunnel *engine.SSHTunnel
+		if c.UseSSH {
+			var tunnelErr error
+			tunnel, tunnelErr = engine.NewSSHTunnel(c.SshHost, c.SshPort, c.SshUser, sshPass, sshKey, c.Host, c.Port)
+			if tunnelErr != nil {
+				return nil, tunnelErr
+			}
+		}
+
 		switch config.Driver(c.Driver) {
 		case config.DriverMySQL:
-			return engine.OpenMySQL(c.Host, c.Port, username, password, dbName)
+			return engine.OpenMySQL(tunnel, c.Host, c.Port, username, password, dbName)
 		default:
-			return engine.OpenPostgres(c.Host, c.Port, username, password, dbName, c.SslMode)
+			return engine.OpenPostgres(tunnel, c.Host, c.Port, username, password, dbName, c.SslMode)
 		}
 	}
 	eng, err := s.Pools.GetOrCreate(c.ID, write, dbName, build)

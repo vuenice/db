@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +18,9 @@ import (
 	"chatdb/internal/security"
 	"chatdb/internal/store"
 	"chatdb/web"
+
+	"github.com/joho/godotenv"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func main() {
@@ -48,7 +52,18 @@ func main() {
 	cancel()
 	log.Printf("metadata sqlite ready: %s", cfg.Metadata.Path)
 
-	crypter, err := security.NewCrypter([]byte(cfg.AppKey))
+	_ = godotenv.Load("../.env", ".env")
+	authApiKey := os.Getenv("AUTH_API_KEY")
+	var cryptoKey []byte
+	if authApiKey != "" {
+		hash := sha256.Sum256([]byte(authApiKey))
+		cryptoKey = hash[:]
+		log.Println("Using AUTH_API_KEY for encryption")
+	} else {
+		cryptoKey = []byte(cfg.AppKey)
+	}
+
+	crypter, err := security.NewCrypter(cryptoKey)
 	if err != nil {
 		log.Fatalf("crypter: %v", err)
 	}
@@ -74,6 +89,21 @@ func main() {
 		log.Printf("chatdb listening on http://%s", cfg.Listen)
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	wailsApp := application.New(application.Options{
+		Name: "chatdb",
+		Description: "chatdb Wails application",
+		Assets: application.AssetOptions{
+			Handler: httpSrv.Handler,
+		},
+	})
+	
+	go func() {
+		err := wailsApp.Run()
+		if err != nil {
+			log.Printf("wails app run: %v", err)
 		}
 	}()
 

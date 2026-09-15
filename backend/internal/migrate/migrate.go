@@ -36,6 +36,12 @@ func Bootstrap(ctx context.Context, db *sql.DB) error {
 			write_username  TEXT    NOT NULL DEFAULT '',
 			write_password  TEXT    NOT NULL DEFAULT '',
 			allowed_schemas TEXT    NOT NULL DEFAULT '[]',
+			use_ssh         INTEGER NOT NULL DEFAULT 0,
+			ssh_host        TEXT    NOT NULL DEFAULT '',
+			ssh_port        INTEGER NOT NULL DEFAULT 22,
+			ssh_user        TEXT    NOT NULL DEFAULT '',
+			ssh_password    TEXT    NOT NULL DEFAULT '',
+			ssh_key         TEXT    NOT NULL DEFAULT '',
 			created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS db_connections_user_id_idx ON db_connections(user_id)`,
@@ -120,6 +126,27 @@ func Upgrade(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("rename users: %w", err)
 		}
 	}
+
+	hasSsh, err := tableHasColumn(ctx, db, "db_connections", "use_ssh")
+	if err != nil {
+		return err
+	}
+	if !hasSsh {
+		alters := []string{
+			"ALTER TABLE db_connections ADD COLUMN use_ssh INTEGER NOT NULL DEFAULT 0",
+			"ALTER TABLE db_connections ADD COLUMN ssh_host TEXT NOT NULL DEFAULT ''",
+			"ALTER TABLE db_connections ADD COLUMN ssh_port INTEGER NOT NULL DEFAULT 22",
+			"ALTER TABLE db_connections ADD COLUMN ssh_user TEXT NOT NULL DEFAULT ''",
+			"ALTER TABLE db_connections ADD COLUMN ssh_password TEXT NOT NULL DEFAULT ''",
+			"ALTER TABLE db_connections ADD COLUMN ssh_key TEXT NOT NULL DEFAULT ''",
+		}
+		for _, a := range alters {
+			if _, err := db.ExecContext(ctx, a); err != nil {
+				return fmt.Errorf("alter db_connections %s: %w", a, err)
+			}
+		}
+	}
+
 	var uv int
 	if e := db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&uv); e != nil {
 		return e

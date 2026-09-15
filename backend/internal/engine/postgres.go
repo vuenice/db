@@ -13,14 +13,22 @@ import (
 )
 
 type pgEngine struct {
-	db *sql.DB
+	db     *sql.DB
+	tunnel *SSHTunnel
 }
 
 // OpenPostgres creates a new Postgres-backed engine.
-func OpenPostgres(host string, port int, user, password, database, sslmode string) (Engine, error) {
+func OpenPostgres(tunnel *SSHTunnel, host string, port int, user, password, database, sslmode string) (Engine, error) {
+	if tunnel != nil {
+		host = tunnel.LocalHost
+		port = tunnel.LocalPort
+	}
 	dsn := store.PostgresDSN(host, port, user, password, database, sslmode)
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
+		if tunnel != nil {
+			tunnel.Close()
+		}
 		return nil, err
 	}
 	db.SetMaxOpenConns(8)
@@ -28,13 +36,21 @@ func OpenPostgres(host string, port int, user, password, database, sslmode strin
 	db.SetConnMaxLifetime(time.Hour)
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
+		if tunnel != nil {
+			tunnel.Close()
+		}
 		return nil, err
 	}
-	return &pgEngine{db: db}, nil
+	return &pgEngine{db: db, tunnel: tunnel}, nil
 }
 
 func (e *pgEngine) Driver() config.Driver        { return config.DriverPostgres }
-func (e *pgEngine) Close()                       { _ = e.db.Close() }
+func (e *pgEngine) Close() {
+	_ = e.db.Close()
+	if e.tunnel != nil {
+		_ = e.tunnel.Close()
+	}
+}
 func (e *pgEngine) Ping(ctx context.Context) error { return e.db.PingContext(ctx) }
 
 func (e *pgEngine) ListDatabases(ctx context.Context) ([]string, error) {

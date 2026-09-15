@@ -56,6 +56,7 @@ const sqlText = ref('SELECT 1')
 const poolMode = ref<'read' | 'write'>('read')
 const execResult = ref<{ columns: string[]; rows: unknown[][]; row_count: number; message?: string } | null>(null)
 const execError = ref('')
+const tablesErr = ref('')
 const lastRunId = ref<string | null>(null)
 /** Seconds, for results header (e.g. 0.43s) */
 const lastRunSeconds = ref<number | null>(null)
@@ -124,7 +125,10 @@ function closeContextMenu() {
 const sortAsc = ref(true)
 
 function actionUpdateField() {
-  openRowEditor(contextTargetItem.value._originalIndex, contextTargetField.value.key)
+  if (!dataPreview.value || !contextTargetField.value) return
+  const colIndex = parseInt(contextTargetField.value.key)
+  const colName = dataPreview.value.columns[colIndex]
+  openRowEditor(contextTargetItem.value._originalIndex, colName)
   closeContextMenu()
 }
 
@@ -655,11 +659,18 @@ async function loadConnections() {
 
 async function loadDatabases() {
   if (!selectedConnId.value) return
-  const { data } = await http.get<{ databases: string[] }>(
-    `/api/connections/${selectedConnId.value}/databases`,
-    { params: dbParams() }
-  )
-  databases.value = data.databases
+  tablesErr.value = ''
+  try {
+    const { data } = await http.get<{ databases: string[] }>(
+      `/api/connections/${selectedConnId.value}/databases`,
+      { params: dbParams() }
+    )
+    databases.value = data.databases || []
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: string } } }
+    tablesErr.value = err.response?.data?.error || 'Could not load databases'
+    databases.value = []
+  }
 }
 
 // Operations functions
@@ -731,11 +742,18 @@ async function loadCatalogRoles() {
 
 async function loadTables() {
   if (!selectedConnId.value) return
-  const { data } = await http.get<{ tables: TableMeta[] }>(
-    `/api/connections/${selectedConnId.value}/tables`,
-    { params: { schema: effectiveSchema.value, ...dbParams() } },
-  )
-  tables.value = data.tables
+  tablesErr.value = ''
+  try {
+    const { data } = await http.get<{ tables: TableMeta[] }>(
+      `/api/connections/${selectedConnId.value}/tables`,
+      { params: { schema: effectiveSchema.value, ...dbParams() } },
+    )
+    tables.value = data.tables || []
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: string } } }
+    tablesErr.value = err.response?.data?.error || 'Could not load tables'
+    tables.value = []
+  }
 }
 
 async function loadColumns() {
@@ -1661,6 +1679,7 @@ async function submitRowUpdate() {
             </div>
 
             <div class="tables-groups" role="list">
+              <p v-if="tablesErr" class="error" style="padding: 1rem;">{{ tablesErr }}</p>
               <section v-for="g in tableGroups" :key="g.letter" class="tables-group" role="listitem">
                 <div class="tables-letter">{{ g.letter }}</div>
                 <div class="tables-items">
@@ -3171,6 +3190,7 @@ a.primary {
 .pane-wide {
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
 }
 .panel.vertical {
   flex-direction: column;

@@ -27,6 +27,12 @@ type registerReq struct {
 	WriteUsername  string   `json:"write_username"`
 	WritePassword  string   `json:"write_password"`
 	AllowedSchemas []string `json:"allowed_schemas"`
+	UseSSH         bool     `json:"use_ssh"`
+	SshHost        string   `json:"ssh_host"`
+	SshPort        int      `json:"ssh_port"`
+	SshUser        string   `json:"ssh_user"`
+	SshPassword    string   `json:"ssh_password"`
+	SshKey         string   `json:"ssh_key"`
 }
 
 type loginReq struct {
@@ -86,7 +92,8 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	if err := pingTargetDB(ctx, driver, req.Host, port, req.Database, sslMode, req.ReadUsername, req.ReadPassword); err != nil {
+	if err := pingTargetDB(ctx, driver, req.Host, port, req.Database, sslMode, req.ReadUsername, req.ReadPassword,
+		req.UseSSH, req.SshHost, req.SshPort, req.SshUser, req.SshPassword, req.SshKey); err != nil {
 		writeErr(w, http.StatusBadRequest, errors.New("database connection failed: "+err.Error()))
 		return
 	}
@@ -136,12 +143,34 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if req.AllowedSchemas != nil {
 		schemas, _ = json.Marshal(req.AllowedSchemas)
 	}
+
+	encSshPass := ""
+	if req.SshPassword != "" {
+		encSshPass, err = s.Crypter.Encrypt(req.SshPassword)
+		if err != nil {
+			_ = s.Store.DeleteUser(r.Context(), user.ID)
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	encSshKey := ""
+	if req.SshKey != "" {
+		encSshKey, err = s.Crypter.Encrypt(req.SshKey)
+		if err != nil {
+			_ = s.Store.DeleteUser(r.Context(), user.ID)
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
 	c := &store.DbConnection{
 		UserID: user.ID, Name: connName, Driver: driver, Host: req.Host, Port: port,
 		Database: req.Database, SslMode: sslMode,
 		ReadUsername: req.ReadUsername, ReadPassword: rp,
 		WriteUsername: req.WriteUsername, WritePassword: wp,
 		AllowedSchemas: string(schemas),
+		UseSSH: req.UseSSH, SshHost: req.SshHost, SshPort: req.SshPort,
+		SshUser: req.SshUser, SshPassword: encSshPass, SshKey: encSshKey,
 	}
 	if err := s.Store.CreateConnection(r.Context(), c); err != nil {
 		_ = s.Store.DeleteUser(r.Context(), user.ID)

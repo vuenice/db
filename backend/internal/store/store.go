@@ -144,6 +144,12 @@ type DbConnection struct {
 	WriteUsername  string
 	WritePassword  string // encrypted
 	AllowedSchemas string // JSON
+	UseSSH         bool
+	SshHost        string
+	SshPort        int
+	SshUser        string
+	SshPassword    string // encrypted
+	SshKey         string // encrypted
 	CreatedAt      time.Time
 }
 
@@ -151,10 +157,12 @@ func (s *Store) CreateConnection(ctx context.Context, c *DbConnection) error {
 	id, err := s.insertReturningID(ctx,
 		`INSERT INTO db_connections
 			(user_id, name, driver, host, port, "database", ssl_mode,
-			 read_username, read_password, write_username, write_password, allowed_schemas)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 read_username, read_password, write_username, write_password, allowed_schemas,
+			 use_ssh, ssh_host, ssh_port, ssh_user, ssh_password, ssh_key)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.UserID, c.Name, c.Driver, c.Host, c.Port, c.Database, c.SslMode,
 		c.ReadUsername, c.ReadPassword, c.WriteUsername, c.WritePassword, c.AllowedSchemas,
+		c.UseSSH, c.SshHost, c.SshPort, c.SshUser, c.SshPassword, c.SshKey,
 	)
 	if err != nil {
 		return err
@@ -164,7 +172,8 @@ func (s *Store) CreateConnection(ctx context.Context, c *DbConnection) error {
 }
 
 const connectionColumns = `id, user_id, name, driver, host, port, "database", ssl_mode,
-	read_username, read_password, write_username, write_password, allowed_schemas, created_at`
+	read_username, read_password, write_username, write_password, allowed_schemas,
+	use_ssh, ssh_host, ssh_port, ssh_user, ssh_password, ssh_key, created_at`
 
 // ConnectionCount returns how many connections belong to the user.
 func (s *Store) ConnectionCount(ctx context.Context, userID int64) (int64, error) {
@@ -189,7 +198,7 @@ func (s *Store) ListConnections(ctx context.Context, userID int64) ([]DbConnecti
 		var c DbConnection
 		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Driver, &c.Host, &c.Port, &c.Database,
 			&c.SslMode, &c.ReadUsername, &c.ReadPassword, &c.WriteUsername, &c.WritePassword,
-			&c.AllowedSchemas, &c.CreatedAt); err != nil {
+			&c.AllowedSchemas, &c.UseSSH, &c.SshHost, &c.SshPort, &c.SshUser, &c.SshPassword, &c.SshKey, &c.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -203,7 +212,7 @@ func (s *Store) GetConnection(ctx context.Context, userID, id int64) (*DbConnect
 	var c DbConnection
 	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Driver, &c.Host, &c.Port, &c.Database,
 		&c.SslMode, &c.ReadUsername, &c.ReadPassword, &c.WriteUsername, &c.WritePassword,
-		&c.AllowedSchemas, &c.CreatedAt); err != nil {
+		&c.AllowedSchemas, &c.UseSSH, &c.SshHost, &c.SshPort, &c.SshUser, &c.SshPassword, &c.SshKey, &c.CreatedAt); err != nil {
 		return nil, err
 	}
 	return &c, nil
@@ -211,12 +220,14 @@ func (s *Store) GetConnection(ctx context.Context, userID, id int64) (*DbConnect
 
 func (s *Store) UpdateConnection(ctx context.Context, c *DbConnection) error {
 	res, err := s.DB.ExecContext(ctx,
-		`UPDATE db_connections
+		 `UPDATE db_connections
 		 SET name = ?, driver = ?, host = ?, port = ?, "database" = ?, ssl_mode = ?,
-		     read_username = ?, read_password = ?, write_username = ?, write_password = ?, allowed_schemas = ?
+		     read_username = ?, read_password = ?, write_username = ?, write_password = ?, allowed_schemas = ?,
+			 use_ssh = ?, ssh_host = ?, ssh_port = ?, ssh_user = ?, ssh_password = ?, ssh_key = ?
 		 WHERE id = ? AND user_id = ?`,
 		c.Name, c.Driver, c.Host, c.Port, c.Database, c.SslMode,
 		c.ReadUsername, c.ReadPassword, c.WriteUsername, c.WritePassword, c.AllowedSchemas,
+		c.UseSSH, c.SshHost, c.SshPort, c.SshUser, c.SshPassword, c.SshKey,
 		c.ID, c.UserID,
 	)
 	if err != nil {

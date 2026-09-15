@@ -1,0 +1,14 @@
+version: '3'
+
+tasks:
+  run:server:
+    desc: "Run Wails application in Server Mode"
+    dir: backend
+    cmds:
+      - go run ./cmd/chatdb
+
+  build:server:
+    desc: "Build Wails application in Server Mode"
+    dir: backend
+    cmds:
+      - wails3 build -tags server

@@ -14,13 +14,21 @@ import (
 type myEngine struct {
 	db       *sql.DB
 	database string // default schema for queries when none is given
+	tunnel   *SSHTunnel
 }
 
 // OpenMySQL creates a new MySQL/MariaDB-backed engine.
-func OpenMySQL(host string, port int, user, password, database string) (Engine, error) {
+func OpenMySQL(tunnel *SSHTunnel, host string, port int, user, password, database string) (Engine, error) {
+	if tunnel != nil {
+		host = tunnel.LocalHost
+		port = tunnel.LocalPort
+	}
 	dsn := store.MySQLDSN(host, port, user, password, database)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
+		if tunnel != nil {
+			tunnel.Close()
+		}
 		return nil, err
 	}
 	db.SetMaxOpenConns(8)
@@ -28,13 +36,21 @@ func OpenMySQL(host string, port int, user, password, database string) (Engine, 
 	db.SetConnMaxLifetime(time.Hour)
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
+		if tunnel != nil {
+			tunnel.Close()
+		}
 		return nil, err
 	}
-	return &myEngine{db: db, database: database}, nil
+	return &myEngine{db: db, database: database, tunnel: tunnel}, nil
 }
 
 func (e *myEngine) Driver() config.Driver        { return config.DriverMySQL }
-func (e *myEngine) Close()                       { _ = e.db.Close() }
+func (e *myEngine) Close() {
+	_ = e.db.Close()
+	if e.tunnel != nil {
+		_ = e.tunnel.Close()
+	}
+}
 func (e *myEngine) Ping(ctx context.Context) error { return e.db.PingContext(ctx) }
 
 func (e *myEngine) ListDatabases(ctx context.Context) ([]string, error) {

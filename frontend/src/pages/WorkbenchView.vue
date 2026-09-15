@@ -1447,6 +1447,7 @@ async function submitRowUpdate() {
                 row-bordered
                 @rowClicked="(item: any) => openRowEditor(item._rowIndex as number)"
               />
+              <p v-if="dataPreview" class="muted small" style="margin-top: 8px;">Right click on any cell to perform actions.</p>
             </div>
             <div v-else class="scroll">
               <VueNiceTable :fields="indexesFields" :items="(indexesItems as any)" row-bordered>
