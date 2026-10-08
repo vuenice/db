@@ -101,6 +101,72 @@ const rowEditFields = ref<Record<string, string>>({})
 const rowEditError = ref('')
 const rowEditBusy = ref(false)
 
+const mcpTab = ref<'stdio' | 'http'>('stdio')
+const mcpModalOpen = ref(false)
+const mcpCopied = ref(false)
+const saveModalOpen = ref(false)
+const saveQueryTitle = ref('')
+
+const mcpStdioConfig = computed(() => {
+  return JSON.stringify({
+    mcpServers: {
+      vuenicedb: {
+        command: './chatdb',
+        args: ['mcp'],
+        env: {
+          AUTH_API_KEY: 'your_secret_key_here'
+        }
+      }
+    }
+  }, null, 2)
+})
+
+const mcpHttpConfig = computed(() => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:6366'
+  const connId = selectedConnId.value || '1'
+  return 'POST ' + origin + '/api/connections/' + connId + '/mcp\nAuthorization: Bearer <your_jwt_token>\nContent-Type: application/json\n\n{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/call",\n  "params": {\n    "name": "list_tables",\n    "arguments": {}\n  }\n}'
+})
+
+async function copyMCPConfig() {
+  const text = mcpTab.value === 'stdio' ? mcpStdioConfig.value : mcpHttpConfig.value
+  try {
+    await navigator.clipboard.writeText(text)
+    mcpCopied.value = true
+    setTimeout(() => { mcpCopied.value = false }, 2000)
+  } catch (e) {
+    console.error('Clipboard copy failed', e)
+  }
+}
+
+function openSaveModal() {
+  saveQueryTitle.value = (queryFileName.value || 'My Query Page').replace(/\.sql$/i, '')
+  saveModalOpen.value = true
+}
+
+async function confirmSaveQuery() {
+  if (!selectedConnId.value) return
+  const title = saveQueryTitle.value.trim() || 'Untitled Page'
+  queryFileName.value = title.endsWith('.sql') ? title : `${title}.sql`
+  await http.post(
+    `/api/connections/${selectedConnId.value}/queries`,
+    { title, sql: sqlText.value, is_saved: true },
+    { params: dbParams() },
+  )
+  saveModalOpen.value = false
+  await loadQueries()
+}
+
+function startNewQueryPage() {
+  queryFileName.value = 'untitled.sql'
+  saveQueryTitle.value = 'New Query Page'
+  const firstTable = tables.value[0]?.name
+  sqlText.value = firstTable ? `SELECT * FROM ${firstTable} LIMIT 20;` : 'SELECT 1;'
+  execResult.value = null
+  execError.value = ''
+  nav.value = 'queries'
+  queriesTab.value = 'chatsql'
+}
+
 const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
@@ -1009,14 +1075,8 @@ function downloadResultsCsv() {
   URL.revokeObjectURL(a.href)
 }
 
-async function saveCurrentQuery() {
-  if (!selectedConnId.value) return
-  await http.post(
-    `/api/connections/${selectedConnId.value}/queries`,
-    { title: 'Saved query', sql: sqlText.value, is_saved: true },
-    { params: dbParams() },
-  )
-  await loadQueries()
+function saveCurrentQuery() {
+  openSaveModal()
 }
 
 function openTable(t: TableMeta) {
@@ -1603,6 +1663,84 @@ async function submitRowUpdate() {
       </div>
     </div>
 
+    <!-- MCP Modal -->
+    <div v-if="mcpModalOpen" class="modal-backdrop" @click.self="mcpModalOpen = false">
+      <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="mcp-title" @click.stop>
+        <div class="modal-header">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-800">MCP Protocol</span>
+            <h2 id="mcp-title" class="modal-title">Connect with Model Context Protocol</h2>
+          </div>
+          <button type="button" class="modal-close" aria-label="Close" @click="mcpModalOpen = false">×</button>
+        </div>
+        
+        <p class="muted small mb-3">
+          Connect VueNiceDB to AI tools like Claude Desktop, Cursor, Continue, or any MCP client to query and inspect your database directly.
+        </p>
+
+        <div class="tabs mb-4">
+          <button type="button" :class="{ on: mcpTab === 'stdio' }" @click="mcpTab = 'stdio'">Claude Desktop / Cursor (Stdio)</button>
+          <button type="button" :class="{ on: mcpTab === 'http' }" @click="mcpTab = 'http'">HTTP Endpoint</button>
+        </div>
+
+        <div v-if="mcpTab === 'stdio'">
+          <p class="small text-gray-700 mb-2 font-medium">Add to your <code>claude_desktop_config.json</code>:</p>
+          <pre class="mono preview-sql p-3 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto">{{ mcpStdioConfig }}</pre>
+        </div>
+        <div v-else>
+          <p class="small text-gray-700 mb-2 font-medium">HTTP JSON-RPC 2.0 Endpoint:</p>
+          <pre class="mono preview-sql p-3 bg-gray-900 text-green-400 rounded text-xs overflow-x-auto">{{ mcpHttpConfig }}</pre>
+        </div>
+
+        <div class="mt-4 border-t border-gray-200 pt-3">
+          <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Available MCP Tools</h4>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-2 bg-gray-50 rounded border border-gray-200">
+              <span class="font-mono font-semibold text-purple-700">list_tables</span>
+              <p class="text-gray-500">List all tables and views in current schema</p>
+            </div>
+            <div class="p-2 bg-gray-50 rounded border border-gray-200">
+              <span class="font-mono font-semibold text-purple-700">describe_table</span>
+              <p class="text-gray-500">Inspect columns, types, nullability, & indexes</p>
+            </div>
+            <div class="p-2 bg-gray-50 rounded border border-gray-200">
+              <span class="font-mono font-semibold text-purple-700">read_query</span>
+              <p class="text-gray-500">Execute safe read-only SQL queries</p>
+            </div>
+            <div class="p-2 bg-gray-50 rounded border border-gray-200">
+              <span class="font-mono font-semibold text-purple-700">list_databases</span>
+              <p class="text-gray-500">List all databases accessible via connection</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions mt-4 flex justify-between items-center">
+          <button type="button" class="primary" @click="copyMCPConfig">
+            {{ mcpCopied ? '✓ Copied to Clipboard!' : 'Copy Configuration' }}
+          </button>
+          <button type="button" class="ghost" @click="mcpModalOpen = false">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Query / Create Page Modal -->
+    <div v-if="saveModalOpen" class="modal-backdrop" @click.self="saveModalOpen = false">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="save-query-title" @click.stop>
+        <h2 id="save-query-title" class="modal-title">Save Query Page</h2>
+        <p class="muted small">Give this query page a descriptive name to organize and run it anytime.</p>
+        <label class="modal-field mt-3">
+          Page / Query Title
+          <input v-model="saveQueryTitle" type="text" placeholder="e.g. Monthly Active Users" autocomplete="off" @keydown.enter="confirmSaveQuery" />
+        </label>
+        <div class="modal-actions mt-4">
+          <button type="button" class="ghost" @click="saveModalOpen = false">Cancel</button>
+          <button type="button" class="primary" :disabled="!saveQueryTitle.trim()" @click="confirmSaveQuery">
+            Save Page
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="flex flex-1 overflow-hidden">
     <aside class="w-[240px] bg-[#f3f4f6] border-r border-[#e5e7eb] flex flex-col transition-all duration-300 ease-in-out shrink-0" aria-label="Main navigation">
       <div class="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar-v2">
@@ -1647,6 +1785,15 @@ async function submitRowUpdate() {
             <button type="button" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-sm font-medium" :class="(nav === 'operations') ? 'bg-white text-emerald-600 border border-[#e5e7eb] shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent'" @click="nav = 'operations'">
               <CogIcon class="w-5 h-5 shrink-0" :class="(nav === 'operations') ? 'text-emerald-600' : 'text-gray-500'" />
               <span>Operations</span>
+            </button>
+          </li>
+          <li class="pt-2">
+            <button type="button" class="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 shadow-xs cursor-pointer" @click="mcpModalOpen = true">
+              <svg class="w-4 h-4 shrink-0 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>Connect MCP</span>
             </button>
           </li>
         </ul>
@@ -2122,8 +2269,17 @@ async function submitRowUpdate() {
                 </li>
               </ul>
               <div v-else class="saved-queries-layer scroll list-fill">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
+                  <div>
+                    <h3 class="text-sm font-semibold text-gray-800">Saved Query Pages</h3>
+                    <p class="text-xs text-gray-500">Custom SQL queries and views</p>
+                  </div>
+                  <button type="button" class="primary text-xs py-1.5 px-3 rounded flex items-center gap-1.5 cursor-pointer" @click="startNewQueryPage">
+                    <span>+ New Query Page</span>
+                  </button>
+                </div>
                 <p v-if="!savedQueries.length" class="saved-queries-empty">
-                  No saved queries yet. Run SQL in Chat SQL, then use Save in the header.
+                  No saved query pages yet. Create one or run SQL in Chat SQL, then click Save.
                 </p>
                 <div v-else class="saved-queries-grid">
                   <article
