@@ -18,12 +18,12 @@ import (
 
 // Server holds all wired dependencies for HTTP handlers.
 type Server struct {
-	Cfg         *config.Config
-	Store       *store.Store
-	Crypter     *security.Crypter
-	JWT         *auth.Issuer
-	Pools       *engine.Manager
-	Static fs.FS // built SPA, may be nil during dev
+	Cfg     *config.Config
+	Store   *store.Store
+	Crypter *security.Crypter
+	JWT     *auth.Issuer
+	Pools   *engine.Manager
+	Static  fs.FS // built SPA, may be nil during dev
 }
 
 // requireAuth enforces JWT on all protected routes.
@@ -63,11 +63,11 @@ func (s *Server) Router() http.Handler {
 			r.Put("/connections/{id}", s.handleConnectionUpdate)
 			r.Delete("/connections/{id}", s.handleConnectionDestroy)
 
-r.Post("/connections/{id}/truncate", s.handleTruncateDatabase)
-		r.Post("/connections/{id}/delete", s.handleDeleteDatabase)
-		r.Post("/connections/{id}/rename", s.handleRenameDatabase)
-		r.Post("/connections/{id}/import", s.handleImportSQL)
-		r.Get("/connections/{id}/export", s.handleExportSQL)
+			r.Post("/connections/{id}/truncate", s.handleTruncateDatabase)
+			r.Post("/connections/{id}/delete", s.handleDeleteDatabase)
+			r.Post("/connections/{id}/rename", s.handleRenameDatabase)
+			r.Post("/connections/{id}/import", s.handleImportSQL)
+			r.Get("/connections/{id}/export", s.handleExportSQL)
 
 			r.Get("/connections/{id}/databases", s.handleListDatabases)
 			r.Get("/connections/{id}/catalog/roles", s.handleCatalogRoles)
@@ -84,6 +84,9 @@ r.Post("/connections/{id}/truncate", s.handleTruncateDatabase)
 			r.Post("/connections/{id}/sql/execute", s.handleSQLExecute)
 			r.Post("/connections/{id}/sql/cancel", s.handleSQLCancel)
 
+			// MCP (Model Context Protocol) endpoint
+			r.Post("/connections/{id}/mcp", s.handleConnectionMCP)
+
 			// Deferred endpoints — return empty payloads so the UI doesn't choke.
 			r.Get("/connections/{id}/schema_graph", stub(map[string]any{"nodes": []any{}, "edges": []any{}}))
 			r.Get("/connections/{id}/queries", s.handleQueriesIndex)
@@ -93,7 +96,7 @@ r.Post("/connections/{id}/truncate", s.handleTruncateDatabase)
 			r.Delete("/connections/{id}/queries/{qid}", s.handleQueriesDestroy)
 			r.Get("/connections/{id}/monitoring/duplicate_indexes", stub(map[string]any{"unavailable": true}))
 			r.Get("/connections/{id}/monitoring/slow_queries", stub(map[string]any{"unavailable": true}))
-			r.Post("/connections/{id}/ai/chat", stub(map[string]any{"sql": "", "error": "AI disabled in this build"}))
+			r.Post("/connections/{id}/ai/chat", s.handleAIChat)
 			r.Post("/connections/{id}/sql/explain", stub(map[string]any{"plan": nil, "error": "EXPLAIN disabled in this build"}))
 		})
 	})

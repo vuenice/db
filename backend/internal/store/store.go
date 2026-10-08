@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"strings"
 	"time"
 )
@@ -89,9 +88,7 @@ func (s *Store) ListConnectionNames(ctx context.Context) ([]string, error) {
 		if err := rows.Scan(&name); err != nil {
 			return nil, err
 		}
-		if strings.TrimSpace(name) != "" {
-			out = append(out, name)
-		}
+		out = append(out, name)
 	}
 	return out, rows.Err()
 }
@@ -104,16 +101,12 @@ func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 
 func scanUser(row *sql.Row) (*User, error) {
 	var u User
-	var ph sql.NullString
-	var created sql.NullTime
-	if err := row.Scan(&u.ID, &u.Username, &u.ConnectionLabel, &u.DbUsername, &u.DbPassword, &ph, &u.Name, &created); err != nil {
+	var hash sql.NullString
+	if err := row.Scan(&u.ID, &u.Username, &u.ConnectionLabel, &u.DbUsername, &u.DbPassword, &hash, &u.Name, &u.CreatedAt); err != nil {
 		return nil, err
 	}
-	if ph.Valid {
-		u.PasswordHash = ph.String
-	}
-	if created.Valid {
-		u.CreatedAt = created.Time
+	if hash.Valid {
+		u.PasswordHash = hash.String
 	}
 	return &u, nil
 }
@@ -218,9 +211,22 @@ func (s *Store) GetConnection(ctx context.Context, userID, id int64) (*DbConnect
 	return &c, nil
 }
 
+// FirstConnection returns the first registered database connection.
+func (s *Store) FirstConnection(ctx context.Context) (*DbConnection, error) {
+	row := s.DB.QueryRowContext(ctx,
+		`SELECT `+connectionColumns+` FROM db_connections ORDER BY id ASC LIMIT 1`)
+	var c DbConnection
+	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Driver, &c.Host, &c.Port, &c.Database,
+		&c.SslMode, &c.ReadUsername, &c.ReadPassword, &c.WriteUsername, &c.WritePassword,
+		&c.AllowedSchemas, &c.UseSSH, &c.SshHost, &c.SshPort, &c.SshUser, &c.SshPassword, &c.SshKey, &c.CreatedAt); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 func (s *Store) UpdateConnection(ctx context.Context, c *DbConnection) error {
 	res, err := s.DB.ExecContext(ctx,
-		 `UPDATE db_connections
+		`UPDATE db_connections
 		 SET name = ?, driver = ?, host = ?, port = ?, "database" = ?, ssl_mode = ?,
 		     read_username = ?, read_password = ?, write_username = ?, write_password = ?, allowed_schemas = ?,
 			 use_ssh = ?, ssh_host = ?, ssh_port = ?, ssh_user = ?, ssh_password = ?, ssh_key = ?
@@ -253,17 +259,10 @@ func (s *Store) DeleteConnection(ctx context.Context, userID, id int64) error {
 	return nil
 }
 
-func (s *Store) insertReturningID(ctx context.Context, q string, args ...any) (int64, error) {
-	res, err := s.DB.ExecContext(ctx, q, args...)
+func (s *Store) insertReturningID(ctx context.Context, query string, args ...any) (int64, error) {
+	res, err := s.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	if id == 0 {
-		return 0, errors.New("no insert id returned")
-	}
-	return id, nil
+	return res.LastInsertId()
 }
